@@ -45,7 +45,7 @@ async function fetchTasks() {
     if (!token || !dashboardRefs) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/`, {
+        const response = await fetch(`${API_BASE_URL}/tasks/`, {
             headers: {
                 "Authorization": `Bearer ${token}`
             }

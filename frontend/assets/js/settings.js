@@ -33,7 +33,7 @@ function initSettingsPage(token) {
     async function fetchProfile() {
         await teamsPromise;
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/me/`, {
+            const response = await fetch(`${API_BASE_URL}/me/`, {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -84,7 +84,7 @@ function initSettingsPage(token) {
         };
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/me/`, {
+            const response = await fetch(`${API_BASE_URL}/me/`, {
                 method: "PUT",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -120,7 +120,7 @@ function initSettingsPage(token) {
 
     async function loadUsersForAdmin() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/users/`, {
+            const response = await fetch(`${API_BASE_URL}/users/`, {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -207,7 +207,7 @@ function initSettingsPage(token) {
         }
         setLoading(buttonEl, true, "Updating...");
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}/role/`, {
+            const response = await fetch(`${API_BASE_URL}/users/${userId}/role/`, {
                 method: "PATCH",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -264,7 +264,7 @@ function initSettingsPage(token) {
             setTeamSelectLoading(true);
         }
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/teams/public/`);
+            const response = await fetch(`${API_BASE_URL}/teams/public/`);
             const teams = await response.json();
 
             if (!response.ok) {
@@ -316,7 +316,7 @@ function initSettingsPage(token) {
         };
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/teams/`, {
+            const response = await fetch(`${API_BASE_URL}/teams/`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -362,7 +362,7 @@ function initSettingsPage(token) {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/teams/`, {
+            const response = await fetch(`${API_BASE_URL}/teams/`, {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -456,7 +456,7 @@ function initSettingsPage(token) {
         }
         setLoading(button, true, "Saving...");
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/teams/${teamId}/`, {
+            const response = await fetch(`${API_BASE_URL}/teams/${teamId}/`, {
                 method: "PUT",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -504,7 +504,7 @@ function initSettingsPage(token) {
         }
         setLoading(button, true, "Deleting...");
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/teams/${teamId}/`, {
+            const response = await fetch(`${API_BASE_URL}/teams/${teamId}/`, {
                 method: "DELETE",
                 headers: {
                     "Authorization": `Bearer ${token}`
