@@ -1,0 +1,40 @@
+.sidebar {
+  width: 220px;
+  background: linear-gradient(180deg, #4b33ff 0%, #6f68ff 50%, #7b2ff7 100%);
+  color: #fff;
+  padding: 32px 28px;
+  border-radius: 32px 0 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sidebar__logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.sidebar nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sidebar nav li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+  opacity: 0.85;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar nav li:hover {
+  opacity: 1;
+  transform: translateX(4px);
+}
