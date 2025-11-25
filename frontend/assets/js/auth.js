@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "/api/v1";
 
 document.addEventListener("DOMContentLoaded", initAuthScripts);
 if (document.readyState === "interactive" || document.readyState === "complete") {
@@ -40,7 +40,7 @@ async function handleLogin(event) {
     messageEl.className = "helper-text";
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/login/`, {
+        const response = await fetch(`${API_BASE_URL}/login/`, {
             method: "POST",
             body: new URLSearchParams(formData), // FastAPI expects form-urlencoded for OAuth2
             headers: {
@@ -102,7 +102,7 @@ async function handleRegister(event) {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/register/`, {
+        const response = await fetch(`${API_BASE_URL}/register/`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -170,7 +170,7 @@ async function hydrateSidebarIdentity(prefetchedUser) {
     roleEl.textContent = "";
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/me/`, {
+        const response = await fetch(`${API_BASE_URL}/me/`, {
             headers: {
                 "Authorization": `Bearer ${token}`
             }
@@ -247,7 +247,7 @@ async function populateTeamSelect() {
     helper && (helper.textContent = "Loading teams...");
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/teams/public/`);
+        const response = await fetch(`${API_BASE_URL}/teams/public/`);
         const teams = await response.json();
 
         if (!response.ok) {
