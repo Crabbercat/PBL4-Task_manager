@@ -150,7 +150,7 @@ function initSettingsPage(token) {
 
         userRoleList.innerHTML = users.map(user => {
             const isAdminUser = user.username === "admin";
-            const teamLabel = user.team_name || (user.team && user.team.name) || "No team";
+            const teamLabel = (user.team && user.team.name) || "No team";
             const roleControls = isAdminUser
                 ? '<div class="role-row__actions"><span class="role-pill">Workspace Admin</span></div>'
                 : `
@@ -167,7 +167,7 @@ function initSettingsPage(token) {
                 <div class="role-row" data-user-id="${user.id}">
                     <div>
                         <strong>${escapeHtml(user.display_name || user.username)}</strong>
-                        <p class="helper-text">Username:${escapeHtml(user.username)}</p>
+                        <p class="helper-text">Username: ${escapeHtml(user.username)}</p>
                         <p class="helper-text">Email: ${escapeHtml(user.email)}</p>
                         <p class="helper-text">Team: ${escapeHtml(teamLabel)}</p>
                     </div>
@@ -581,6 +581,7 @@ function initSettingsPage(token) {
         teamRefreshTimer = window.setTimeout(() => {
             loadAdminTeams();
             loadPublicTeams({ preserveSelection: true });
+            loadUsersForAdmin();
             teamRefreshTimer = null;
         }, delay);
     }

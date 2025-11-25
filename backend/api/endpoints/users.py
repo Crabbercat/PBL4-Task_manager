@@ -20,21 +20,18 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     display_name = user.display_name or user.username
-    team_name = None
     team_id = None
     if user.team_id:
         team = db.query(Team).filter(Team.id == user.team_id).first()
         if team is None:
             raise HTTPException(status_code=404, detail="Selected team not found")
         team_id = team.id
-        team_name = team.name
     db_user = User(
         username=user.username,
         email=user.email,
         hashed_password=get_password_hash(user.password),
         role="user",
         display_name=display_name,
-        team_name=team_name,
         team_id=team_id,
     )
     db.add(db_user)
@@ -79,13 +76,11 @@ def update_current_user(updates: UserUpdate, db: Session = Depends(get_db), user
     if updates.team_id is not None:
         if updates.team_id == 0:
             user.team_id = None
-            user.team_name = None
         else:
             team = db.query(Team).filter(Team.id == updates.team_id).first()
             if team is None:
                 raise HTTPException(status_code=404, detail="Team not found")
             user.team_id = team.id
-            user.team_name = team.name
 
     db.add(user)
     db.commit()
