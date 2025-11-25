@@ -170,7 +170,7 @@ async function hydrateSidebarIdentity(prefetchedUser) {
     roleEl.textContent = "";
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/me/`, {
+        const response = await fetch(`${API_BASE_URL}/me/`, {
             headers: {
                 "Authorization": `Bearer ${token}`
             }

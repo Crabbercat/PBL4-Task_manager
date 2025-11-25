@@ -213,7 +213,7 @@ async function handlePersonalTaskSubmit(event) {
     setLoading(dashboardRefs.taskSubmitBtn, true, "Creating...");
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/`, {
+        const response = await fetch(`${API_BASE_URL}/tasks/`, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${token}`,
