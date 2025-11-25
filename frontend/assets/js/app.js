@@ -32,7 +32,10 @@ function initDashboard() {
         taskSubmitBtn: document.getElementById("taskSubmitBtn"),
         taskCancelBtn: document.getElementById("taskCancelBtn"),
         openTaskBtn: document.getElementById("openTaskModal"),
-        closeTaskBtn: document.getElementById("closeTaskModal")
+        closeTaskBtn: document.getElementById("closeTaskModal"),
+        taskModalTitle: document.getElementById("taskModalTitle"),
+        taskModalSubtitle: document.getElementById("taskModalSubtitle"),
+        latestTasks: []
     };
 
     fetchTasks();
@@ -45,17 +48,7 @@ async function fetchTasks() {
     if (!token || !dashboardRefs) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/`, {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-
-        if (response.status === 401) {
-            logout();
-            return;
-        }
-
+        const response = await authedFetch("/api/v1/tasks/");
         const tasks = await response.json();
         renderDashboard(tasks);
 
@@ -67,9 +60,11 @@ async function fetchTasks() {
 function renderDashboard(tasks) {
     if (!dashboardRefs) return;
 
+    const taskList = Array.isArray(tasks) ? tasks : [];
+    dashboardRefs.latestTasks = taskList;
     const grouped = { to_do: [], in_progress: [], done: [] };
 
-    tasks.forEach(task => {
+    taskList.forEach(task => {
         const key = (task.status || '').toLowerCase();
         if (grouped[key]) {
             grouped[key].push(task);
@@ -82,7 +77,7 @@ function renderDashboard(tasks) {
         const column = dashboardRefs.columns[key];
         if (!column) return;
         column.innerHTML = list.length
-            ? list.map(createTaskCard).join("")
+            ? list.map(task => createTaskCard(task)).join("")
             : '<p class="empty-state">No tasks yet.</p>';
 
         if (dashboardRefs.counts[key]) {
@@ -90,9 +85,9 @@ function renderDashboard(tasks) {
         }
     });
 
-    const upcoming = tasks.filter(task => isUpcoming(task.due_date)).length;
+    const upcoming = taskList.filter(task => isUpcoming(task.due_date)).length;
 
-    dashboardRefs.stats.total.textContent = tasks.length;
+    dashboardRefs.stats.total.textContent = taskList.length;
     dashboardRefs.stats.progress.textContent = grouped.in_progress.length;
     dashboardRefs.stats.completed.textContent = grouped.done.length;
     dashboardRefs.stats.upcoming.textContent = upcoming;
@@ -112,7 +107,7 @@ function setupTaskModal() {
     if (!dashboardRefs?.taskModal) {
         return;
     }
-    dashboardRefs.openTaskBtn?.addEventListener("click", openTaskModal);
+    dashboardRefs.openTaskBtn?.addEventListener("click", () => openTaskModal());
     dashboardRefs.closeTaskBtn?.addEventListener("click", closeTaskModal);
     dashboardRefs.taskCancelBtn?.addEventListener("click", closeTaskModal);
     dashboardRefs.taskModal.addEventListener("click", event => {
@@ -120,9 +115,50 @@ function setupTaskModal() {
             closeTaskModal();
         }
     });
-    dashboardRefs.taskForm?.addEventListener("submit", handlePersonalTaskSubmit);
+    dashboardRefs.taskForm?.addEventListener("submit", handleTaskFormSubmit);
     populateDueTimeSelects();
-    setDefaultStartDate();
+    setTaskFormMode("create");
+    dashboardRefs.columns?.to_do?.addEventListener("click", handleTaskActionClick);
+    dashboardRefs.columns?.in_progress?.addEventListener("click", handleTaskActionClick);
+    dashboardRefs.columns?.done?.addEventListener("click", handleTaskActionClick);
+}
+
+function handleTaskActionClick(event) {
+    const editBtn = event.target.closest("[data-edit-task]");
+    if (editBtn) {
+        const taskId = Number(editBtn.getAttribute("data-edit-task"));
+        const task = findTaskById(taskId);
+        if (task) {
+            openTaskModal(task);
+        }
+        return;
+    }
+
+    const select = event.target.closest("select[data-status-select]");
+    if (select) {
+        const taskId = Number(select.getAttribute("data-status-select"));
+        const task = findTaskById(taskId);
+        if (!task) {
+            return;
+        }
+
+        const newStatus = select.value;
+        if (newStatus === task.status) {
+            return;
+        }
+
+        const confirmChange = window.confirm(`Update status to ${humanize(newStatus)}?`);
+        if (!confirmChange) {
+            select.value = task.status;
+            return;
+        }
+
+        updateTaskStatus(taskId, newStatus, select);
+    }
+}
+
+function findTaskById(taskId) {
+    return dashboardRefs?.latestTasks?.find(task => task.id === taskId);
 }
 
 function populateDueTimeSelects() {
@@ -152,10 +188,12 @@ function populateDueTimeSelects() {
     toggleDueTimeSelects(false, true);
 }
 
-function openTaskModal() {
-    dashboardRefs.taskModal?.removeAttribute("hidden");
-    setDefaultStartDate();
-    toggleDueTimeSelects(false, true);
+function openTaskModal(task = null) {
+    if (!dashboardRefs?.taskModal) {
+        return;
+    }
+    setTaskFormMode(task ? "edit" : "create", task || null);
+    dashboardRefs.taskModal.removeAttribute("hidden");
     dashboardRefs.taskModal?.querySelector("input[name='title']")?.focus();
 }
 
@@ -164,31 +202,47 @@ function closeTaskModal() {
         return;
     }
     dashboardRefs.taskModal.setAttribute("hidden", "true");
-    dashboardRefs.taskForm?.reset();
-    setDefaultStartDate();
-    toggleDueTimeSelects(false, true);
-    setTaskFormMessage("", "");
+    setTaskFormMode("create");
 }
 
-async function handlePersonalTaskSubmit(event) {
+async function handleTaskFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
+    const mode = form.dataset.mode || "create";
+    const payload = buildTaskPayload(form);
+    if (!payload) {
+        return;
+    }
+
+    if (mode === "edit") {
+        const taskId = Number(form.dataset.taskId);
+        if (!taskId) {
+            setTaskFormMessage("Unable to determine which task to update.", "error");
+            return;
+        }
+        await submitTaskUpdate(taskId, payload, form);
+    } else {
+        await submitPersonalTask(payload, form);
+    }
+}
+
+function buildTaskPayload(form) {
     const title = form.title.value.trim();
     if (!title) {
         setTaskFormMessage("Title is required", "error");
-        return;
+        return null;
     }
 
     const startDateValue = form.start_date.value;
     if (!startDateValue) {
         setTaskFormMessage("Start date is required", "error");
-        return;
+        return null;
     }
 
-    const token = localStorage.getItem("tm_access_token");
-    if (!token) {
-        logout();
-        return;
+    const startDate = new Date(startDateValue);
+    if (Number.isNaN(startDate.getTime())) {
+        setTaskFormMessage("Invalid start date", "error");
+        return null;
     }
 
     const dueDate = form.due_date_date.value;
@@ -197,26 +251,32 @@ async function handlePersonalTaskSubmit(event) {
         const hour = form.due_hour.value || "00";
         const minute = form.due_minute.value || "00";
         const second = form.due_second.value || "00";
-        dueDateIso = new Date(`${dueDate}T${hour}:${minute}:${second}`).toISOString();
+        const due = new Date(`${dueDate}T${hour}:${minute}:${second}`);
+        if (Number.isNaN(due.getTime())) {
+            setTaskFormMessage("Invalid due date", "error");
+            return null;
+        }
+        dueDateIso = due.toISOString();
     }
 
-    const payload = {
+    return {
         title,
         description: form.description.value.trim() || null,
         priority: form.priority.value,
-        start_date: new Date(startDateValue).toISOString(),
-        due_date: dueDateIso,
-        is_personal: true
+        start_date: startDate.toISOString(),
+        due_date: dueDateIso
     };
+}
 
+async function submitPersonalTask(basePayload, form) {
+    const payload = { ...basePayload, is_personal: true };
     setTaskFormMessage("", "");
     setLoading(dashboardRefs.taskSubmitBtn, true, "Creating...");
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/`, {
+        const response = await authedFetch("/api/v1/tasks/", {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${token}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify(payload)
@@ -227,7 +287,7 @@ async function handlePersonalTaskSubmit(event) {
             throw new Error(data.detail || "Unable to create task");
         }
 
-        setTaskFormMessage("Personal task created! Redirecting...", "success");
+        setTaskFormMessage("Personal task created! Redirecting to Personal tasks page...", "success");
         form.reset();
 
         setTimeout(() => {
@@ -237,6 +297,167 @@ async function handlePersonalTaskSubmit(event) {
         setTaskFormMessage(error.message, "error");
     } finally {
         setLoading(dashboardRefs.taskSubmitBtn, false, "Create task");
+    }
+}
+
+async function submitTaskUpdate(taskId, payload, form) {
+    setTaskFormMessage("", "");
+    setLoading(dashboardRefs.taskSubmitBtn, true, "Saving...");
+
+    try {
+        const response = await authedFetch(`/api/v1/tasks/${taskId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.detail || "Unable to update task");
+        }
+
+        setTaskFormMessage("Task updated!", "success");
+        await fetchTasks();
+
+        setTimeout(() => {
+            closeTaskModal();
+        }, 800);
+    } catch (error) {
+        setTaskFormMessage(error.message, "error");
+    } finally {
+        const label = form.dataset.mode === "edit" ? "Save changes" : "Create task";
+        setLoading(dashboardRefs.taskSubmitBtn, false, label);
+    }
+}
+
+function setTaskFormMode(mode = "create", task = null) {
+    const form = dashboardRefs?.taskForm;
+    if (!form) {
+        return;
+    }
+
+    form.reset();
+    setTaskFormMessage("", "");
+
+    const isEdit = mode === "edit" && Boolean(task);
+    form.dataset.mode = isEdit ? "edit" : "create";
+
+    if (isEdit && task) {
+        form.dataset.taskId = String(task.id);
+        form.title.value = task.title || "";
+        form.description.value = task.description || "";
+        form.priority.value = (task.priority || "medium").toLowerCase();
+        setDefaultStartDate(task.start_date || new Date());
+        setDueDateFields(task.due_date);
+        setModalCopy("edit");
+        if (dashboardRefs.taskSubmitBtn) {
+            dashboardRefs.taskSubmitBtn.textContent = "Save changes";
+        }
+    } else {
+        delete form.dataset.taskId;
+        setDefaultStartDate();
+        setDueDateFields(null);
+        setModalCopy("create");
+        if (dashboardRefs.taskSubmitBtn) {
+            dashboardRefs.taskSubmitBtn.textContent = "Create task";
+        }
+    }
+}
+
+function setModalCopy(mode) {
+    const titleEl = dashboardRefs?.taskModalTitle;
+    const subtitleEl = dashboardRefs?.taskModalSubtitle;
+    const key = mode === "edit" ? "editText" : "createText";
+    if (titleEl && titleEl.dataset?.[key]) {
+        titleEl.textContent = titleEl.dataset[key];
+    }
+    if (subtitleEl && subtitleEl.dataset?.[key]) {
+        subtitleEl.textContent = subtitleEl.dataset[key];
+    }
+}
+
+function setDueDateFields(dateString) {
+    const dateInput = document.getElementById("taskDueDate");
+    const hourSelect = document.getElementById("taskDueHour");
+    const minuteSelect = document.getElementById("taskDueMinute");
+    const secondSelect = document.getElementById("taskDueSecond");
+
+    if (!dateInput) {
+        return;
+    }
+
+    if (!dateString) {
+        dateInput.value = "";
+        toggleDueTimeSelects(false, true);
+        return;
+    }
+
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+        dateInput.value = "";
+        toggleDueTimeSelects(false, true);
+        return;
+    }
+
+    const local = formatDateTimeLocal(date);
+    dateInput.value = local ? local.slice(0, 10) : "";
+    toggleDueTimeSelects(true, false);
+
+    if (hourSelect) {
+        hourSelect.value = padTimeUnit(date.getHours());
+    }
+    if (minuteSelect) {
+        minuteSelect.value = padTimeUnit(date.getMinutes());
+    }
+    if (secondSelect) {
+        secondSelect.value = padTimeUnit(date.getSeconds());
+    }
+}
+
+function padTimeUnit(value) {
+    return String(value).padStart(2, "0");
+}
+
+async function updateTaskStatus(taskId, newStatus, select) {
+    const task = findTaskById(taskId);
+    if (!task) {
+        return;
+    }
+
+    if (newStatus === "done" && task.due_date) {
+        const now = new Date();
+        const dueDate = new Date(task.due_date);
+        if (now > dueDate) {
+            alert("This task is past its due date. Adjust the due date before marking it done.");
+            select.value = task.status;
+            return;
+        }
+    }
+
+    select.disabled = true;
+    try {
+        const response = await authedFetch(`/api/v1/tasks/${taskId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ status: newStatus })
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.detail || "Unable to update status");
+        }
+
+        task.status = newStatus;
+        await fetchTasks();
+    } catch (error) {
+        alert(error.message);
+        select.value = task.status;
+    } finally {
+        select.disabled = false;
     }
 }
 
@@ -256,22 +477,43 @@ function createTaskCard(task) {
     const statusClass = getStatusClass(task.status);
     const priority = (task.priority || '').toUpperCase();
     const due = formatDate(task.due_date);
+    const priorityLower = (task.priority || 'medium').toLowerCase();
 
     return `
-        <article class="task-card">
-            <div class="task-header">
-                <h3>${safeTitle}</h3>
-                <span class="status-badge ${statusClass}">
-                    ${humanize(task.status)}
-                </span>
+        <article class="task-card" data-task-id="${task.id}" data-priority="${priorityLower}">
+            <div class="task-card__top">
+                <div class="task-header">
+                    <h3>${safeTitle}</h3>
+                    <span class="status-badge ${statusClass}">
+                        ${humanize(task.status)}
+                    </span>
+                </div>
+                <span class="priority-chip priority-chip--${priorityLower}">${priority || 'N/A'}</span>
             </div>
             <p>${safeDescription}</p>
             <div class="task-meta">
-                <span>Priority: ${priority || 'N/A'}</span>
                 <span>Due: ${due}</span>
+                <span>Start: ${formatDate(task.start_date)}</span>
+            </div>
+            <div class="task-card__actions">
+                <label class="task-status-control">
+                    <span>Status</span>
+                    <select data-status-select="${task.id}">
+                        ${renderStatusSelectOptions(task.status)}
+                    </select>
+                </label>
+                <button class="ghost-button" type="button" data-edit-task="${task.id}">Edit details</button>
             </div>
         </article>
     `;
+}
+
+function renderStatusSelectOptions(currentStatus) {
+    const normalized = (currentStatus || "").toLowerCase();
+    const statuses = ["to_do", "in_progress", "done"];
+    return statuses
+        .map(status => `<option value="${status}" ${status === normalized ? "selected" : ""}>${humanize(status)}</option>`)
+        .join("");
 }
 
 function getStatusClass(status) {
@@ -316,15 +558,24 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
-function setDefaultStartDate() {
+function setDefaultStartDate(value) {
     const input = document.getElementById("taskStartDate");
     if (!input) {
         return;
     }
-    input.value = formatDateTimeLocal(new Date());
+    const date = value ? new Date(value) : new Date();
+    let formatted = formatDateTimeLocal(date);
+    if (!formatted) {
+        formatted = formatDateTimeLocal(new Date());
+    }
+    input.value = formatted || "";
 }
 
-function formatDateTimeLocal(date) {
+function formatDateTimeLocal(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
     const tzOffset = date.getTimezoneOffset() * 60000;
     const localISOTime = new Date(date.getTime() - tzOffset).toISOString();
     return localISOTime.slice(0, 16);

@@ -882,10 +882,58 @@ button {
     gap: 10px;
 }
 
+.task-card[data-priority="high"] {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 10px 30px rgba(239, 68, 68, 0.15);
+}
+
+.task-card[data-priority="medium"] {
+    border-color: rgba(251, 146, 60, 0.5);
+    box-shadow: 0 10px 30px rgba(251, 146, 60, 0.12);
+}
+
+.task-card[data-priority="low"] {
+    border-color: rgba(59, 130, 246, 0.35);
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.1);
+}
+
+.task-card__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+}
+
 .task-header {
     display: flex;
     justify-content: space-between;
     gap: 12px;
+}
+
+.priority-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.priority-chip--high {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fecaca;
+}
+
+.priority-chip--medium {
+    background: rgba(251, 146, 60, 0.2);
+    color: #fed7aa;
+}
+
+.priority-chip--low {
+    background: rgba(59, 130, 246, 0.2);
+    color: #bfdbfe;
 }
 
 .status-badge {
@@ -921,6 +969,41 @@ button {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.task-card__actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.task-status-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 180px;
+}
+
+.task-status-control select {
+    border-radius: 14px;
+    border: 1px solid rgba(124, 93, 255, 0.4);
+    padding: 10px 36px 10px 14px;
+    background: linear-gradient(145deg, rgba(5, 10, 36, 0.92), rgba(20, 28, 66, 0.9));
+    color: #fff;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+}
+
+.task-card__actions button {
+    align-self: flex-start;
 }
 
 .empty-state {
