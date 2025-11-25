@@ -36,7 +36,6 @@ class User(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(128), nullable=False)
     display_name = Column(String(100), nullable=True)
-    team_name = Column("team", String(100), nullable=True)
     team_id = Column(Integer, ForeignKey("team.id"), nullable=True)
     role = Column(String(20), default="user")
     is_active = Column(Boolean, default=True)

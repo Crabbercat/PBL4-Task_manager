@@ -31,7 +31,6 @@ class UserResponse(BaseModel):
     username: str
     email: EmailStr
     display_name: Optional[str]
-    team_name: Optional[str]
     team_id: Optional[int]
     team: Optional[TeamSummary] = None
     role: str
@@ -53,6 +52,5 @@ class UserSummary(BaseModel):
     username: str
     email: EmailStr
     display_name: Optional[str]
-    team_name: Optional[str]
     team_id: Optional[int]
     role: str
