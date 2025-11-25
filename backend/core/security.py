@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 from ..core.config import settings
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login/")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login/")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 

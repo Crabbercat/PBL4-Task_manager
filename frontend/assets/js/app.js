@@ -48,7 +48,7 @@ async function fetchTasks() {
     if (!token || !dashboardRefs) return;
 
     try {
-        const response = await authedFetch("/api/v1/tasks/");
+        const response = await authedFetch("/tasks/");
         const tasks = await response.json();
         renderDashboard(tasks);
 
@@ -274,7 +274,7 @@ async function submitPersonalTask(basePayload, form) {
     setLoading(dashboardRefs.taskSubmitBtn, true, "Creating...");
 
     try {
-        const response = await authedFetch("/api/v1/tasks/", {
+        const response = await authedFetch("/tasks/", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -305,7 +305,7 @@ async function submitTaskUpdate(taskId, payload, form) {
     setLoading(dashboardRefs.taskSubmitBtn, true, "Saving...");
 
     try {
-        const response = await authedFetch(`/api/v1/tasks/${taskId}`, {
+        const response = await authedFetch(`/tasks/${taskId}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json"
@@ -438,7 +438,7 @@ async function updateTaskStatus(taskId, newStatus, select) {
 
     select.disabled = true;
     try {
-        const response = await authedFetch(`/api/v1/tasks/${taskId}`, {
+        const response = await authedFetch(`/tasks/${taskId}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json"

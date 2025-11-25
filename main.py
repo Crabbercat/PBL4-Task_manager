@@ -27,10 +27,12 @@ app.add_middleware(
 # app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-app.include_router(tasks.router, prefix="/api/v1", tags=["Tasks"])
-app.include_router(projects.router, prefix="/api/v1", tags=["Projects"])
-app.include_router(users.router, prefix="/api/v1", tags=["Users"])
-app.include_router(teams.router, prefix="/api/v1", tags=["Teams"])
+API_PREFIX = "/api/v1"
+
+app.include_router(tasks.router, prefix=API_PREFIX, tags=["Tasks"])
+app.include_router(projects.router, prefix=API_PREFIX, tags=["Projects"])
+app.include_router(users.router, prefix=API_PREFIX, tags=["Users"])
+app.include_router(teams.router, prefix=API_PREFIX, tags=["Teams"])
 app.middleware("http")(logging_middleware)
 
 
