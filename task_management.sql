@@ -1,6 +1,6 @@
 -- Task Manager MySQL schema
 -- Import this file using phpMyAdmin or the MySQL CLI after updating credentials.
-
+DROP DATABASE IF EXISTS task_manager;
 CREATE DATABASE IF NOT EXISTS task_manager CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE task_manager;
 
