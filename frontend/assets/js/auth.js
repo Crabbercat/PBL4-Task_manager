@@ -1,6 +1,18 @@
 const API_BASE_URL = "http://localhost:8000";
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", initAuthScripts);
+if (document.readyState === "interactive" || document.readyState === "complete") {
+    initAuthScripts();
+}
+
+let authScriptsInitialized = false;
+
+function initAuthScripts() {
+    if (authScriptsInitialized) {
+        return;
+    }
+    authScriptsInitialized = true;
+
     const loginForm = document.getElementById("loginForm");
     const registerForm = document.getElementById("registerForm");
 
@@ -12,7 +24,9 @@ document.addEventListener("DOMContentLoaded", () => {
         registerForm.addEventListener("submit", handleRegister);
         populateTeamSelect();
     }
-});
+
+    hydrateSidebarIdentity();
+}
 
 async function handleLogin(event) {
     event.preventDefault();
@@ -130,6 +144,95 @@ function setLoading(btn, isLoading, text) {
 function logout() {
     localStorage.removeItem("tm_access_token");
     window.location.href = "login.php";
+}
+
+async function hydrateSidebarIdentity(prefetchedUser) {
+    const avatarEl = document.getElementById("sidebarAvatar");
+    const nameEl = document.getElementById("sidebarDisplayName");
+    const roleEl = document.getElementById("sidebarRole");
+
+    if (!avatarEl || !nameEl || !roleEl) {
+        return;
+    }
+
+    if (prefetchedUser) {
+        applySidebarIdentity(prefetchedUser, avatarEl, nameEl, roleEl);
+        return;
+    }
+
+    const token = localStorage.getItem("tm_access_token");
+    if (!token) {
+        applySidebarFallback(avatarEl, nameEl, roleEl);
+        return;
+    }
+
+    nameEl.textContent = "Loading...";
+    roleEl.textContent = "";
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/me/`, {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error("Unable to fetch profile");
+        }
+
+        const user = await response.json();
+        applySidebarIdentity(user, avatarEl, nameEl, roleEl);
+    } catch (error) {
+        applySidebarFallback(avatarEl, nameEl, roleEl);
+    }
+}
+
+function applySidebarIdentity(user, avatarEl, nameEl, roleEl) {
+    const displayName = user?.display_name || user?.username;
+    avatarEl.textContent = getInitials(displayName);
+    nameEl.textContent = displayName;
+    roleEl.textContent = formatRoleLabel(user?.role);
+}
+
+function applySidebarFallback(avatarEl, nameEl, roleEl) {
+    avatarEl.textContent = "TM";
+    nameEl.textContent = "Task Manager";
+    roleEl.textContent = "Flow Suite";
+}
+
+function getInitials(name) {
+    if (!name) {
+        return "";
+    }
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) {
+        return parts[0][0].toUpperCase();
+    }
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function formatRoleLabel(role) {
+    if (!role) {
+        return "Member";
+    }
+    const map = {
+        admin: "Administrator",
+        manager: "Manager",
+        user: "Member"
+    };
+    const normalized = role.toLowerCase();
+    if (map[normalized]) {
+        return map[normalized];
+    }
+    return normalized
+        .split(/[_\s]+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
 }
 
 async function populateTeamSelect() {

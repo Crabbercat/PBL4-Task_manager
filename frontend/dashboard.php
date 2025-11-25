@@ -15,7 +15,6 @@
                 <button class="primary-button primary-button--icon" type="button">
                     <span>+</span> Add task
                 </button>
-                <div class="user-chip" id="userNameDisplay">Loading...</div>
             </div>
         </header>
 

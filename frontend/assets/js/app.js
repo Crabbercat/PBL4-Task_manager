@@ -25,39 +25,10 @@ function initDashboard() {
             completed: document.getElementById("completedTasksStat"),
             upcoming: document.getElementById("upcomingTasksStat")
         },
-        boardMessage: document.getElementById("emptyBoardMessage"),
-        userChip: document.getElementById("userNameDisplay")
+        boardMessage: document.getElementById("emptyBoardMessage")
     };
 
     fetchTasks();
-    fetchUserProfile();
-}
-
-async function fetchUserProfile() {
-    const token = localStorage.getItem("tm_access_token");
-    if (!token || !dashboardRefs?.userChip) return;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/me/`, {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-
-        if (response.status === 401) {
-            logout();
-            return;
-        }
-
-        if (!response.ok) {
-            throw new Error("Unable to fetch profile");
-        }
-
-        const user = await response.json();
-        dashboardRefs.userChip.textContent = user.display_name || user.username || "Welcome!";
-    } catch (error) {
-        dashboardRefs.userChip.textContent = "Welcome!";
-    }
 }
 
 async function fetchTasks() {
