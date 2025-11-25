@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from ..models.user import UserCreate, UserProfile, UserResponse
+from ..models.user import UserCreate, UserProfile, UserResponse, UserUpdate, UserRoleUpdate
 from ...core.security import get_password_hash, create_access_token, get_user_by_token, verify_password
 from ...db.database import get_db
-from ...db.db_structure import User
+from ...db.db_structure import User, Team
 
 router = APIRouter()
 
@@ -19,12 +19,23 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Username already registered")
     if db.query(User).filter(User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    role = user.role if user.role in {"user", "manager", "admin"} else "user"
+    display_name = user.display_name or user.username
+    team_name = None
+    team_id = None
+    if user.team_id:
+        team = db.query(Team).filter(Team.id == user.team_id).first()
+        if team is None:
+            raise HTTPException(status_code=404, detail="Selected team not found")
+        team_id = team.id
+        team_name = team.name
     db_user = User(
         username=user.username,
         email=user.email,
         hashed_password=get_password_hash(user.password),
-        role=role,
+        role="user",
+        display_name=display_name,
+        team_name=team_name,
+        team_id=team_id,
     )
     db.add(db_user)
     db.commit()
@@ -51,11 +62,67 @@ def read_current_user(db: Session = Depends(get_db), username: str = Depends(get
     return user
 
 
+@router.put("/me/", response_model=UserProfile)
+def update_current_user(updates: UserUpdate, db: Session = Depends(get_db), username: str = Depends(get_user_by_token)):
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if updates.email and updates.email != user.email:
+        if db.query(User).filter(User.email == updates.email).first():
+            raise HTTPException(status_code=400, detail="Email already in use")
+        user.email = updates.email
+
+    if updates.display_name is not None:
+        user.display_name = updates.display_name or user.username
+
+    if updates.team_id is not None:
+        if updates.team_id == 0:
+            user.team_id = None
+            user.team_name = None
+        else:
+            team = db.query(Team).filter(Team.id == updates.team_id).first()
+            if team is None:
+                raise HTTPException(status_code=404, detail="Team not found")
+            user.team_id = team.id
+            user.team_name = team.name
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.get("/users/", response_model=List[UserResponse])
 def list_users(db: Session = Depends(get_db), username: str = Depends(get_user_by_token)):
     current_user = db.query(User).filter(User.username == username).first()
     if current_user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    if current_user.role != "admin":
+    if current_user.username != "admin":
         raise HTTPException(status_code=403, detail="Admin privileges required")
     return db.query(User).all()
+
+
+@router.patch("/users/{user_id}/role/", response_model=UserResponse)
+def update_user_role(user_id: int, update: UserRoleUpdate, db: Session = Depends(get_db), username: str = Depends(get_user_by_token)):
+    current_user = db.query(User).filter(User.username == username).first()
+    if current_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if current_user.username != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can update roles")
+
+    if update.role not in {"user", "manager"}:
+        raise HTTPException(status_code=400, detail="Role must be user or manager")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if target_user is None:
+        raise HTTPException(status_code=404, detail="Target user not found")
+
+    if target_user.username == "admin":
+        raise HTTPException(status_code=400, detail="Cannot change admin role")
+
+    target_user.role = update.role
+    db.add(target_user)
+    db.commit()
+    db.refresh(target_user)
+    return target_user

@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .project import ProjectSlim
 from .user import UserSummary
@@ -52,6 +52,8 @@ class TaskUpdate(BaseModel):
 
 
 class TaskResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
     description: Optional[str]
@@ -68,6 +70,3 @@ class TaskResponse(BaseModel):
     parent_task_id: Optional[int]
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        orm_mode = True

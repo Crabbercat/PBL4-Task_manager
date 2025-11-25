@@ -3,15 +3,19 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.endpoints import projects, tasks, users
+from backend.api.endpoints import projects, tasks, users, teams
 from backend.api.middleware.middleware import logging_middleware, logger
 from backend.db.database import Base, engine
 
 app = FastAPI()
 
 frontend_origins = [
+    "http://localhost",
+    "http://127.0.0.1",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://192.168.1.60",
+
 ]
 
 app.add_middleware(
@@ -28,6 +32,7 @@ app.add_middleware(
 app.include_router(tasks.router, prefix="/api/v1", tags=["Tasks"])
 app.include_router(projects.router, prefix="/api/v1", tags=["Projects"])
 app.include_router(users.router, prefix="/api/v1", tags=["Users"])
+app.include_router(teams.router, prefix="/api/v1", tags=["Teams"])
 app.middleware("http")(logging_middleware)
 
 

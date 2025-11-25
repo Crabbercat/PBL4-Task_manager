@@ -6,6 +6,19 @@ from sqlalchemy.orm import relationship
 from backend.db.database import Base
 
 
+class Team(Base):
+    __tablename__ = "team"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(String(255), nullable=True)
+    created_by = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    members = relationship("User", back_populates="team")
+
+
 project_members = Table(
     "project_member",
     Base.metadata,
@@ -22,6 +35,9 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(128), nullable=False)
+    display_name = Column(String(100), nullable=True)
+    team_name = Column("team", String(100), nullable=True)
+    team_id = Column(Integer, ForeignKey("team.id"), nullable=True)
     role = Column(String(20), default="user")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -32,6 +48,7 @@ class User(Base):
     projects = relationship("Project", secondary=project_members, back_populates="members")
     tasks_created = relationship("Task", back_populates="creator", foreign_keys="Task.creator_id")
     tasks_assigned = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
+    team = relationship("Team", back_populates="members")
 
 
 class Project(Base):

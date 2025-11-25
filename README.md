@@ -100,6 +100,29 @@ Before running the application, make sure you have the following prerequisites i
    pip install -r requirements.txt
    ```
 
+### Configure MySQL (XAMPP)
+
+1. Start the MySQL service from the XAMPP control panel (port 3306 by default).
+2. Create the database schema by importing `mysql_schema.sql` through phpMyAdmin ("Import" tab) or via the CLI:
+
+   ```bash
+   mysql -u root -p < mysql_schema.sql
+   ```
+
+   The script provisions the `task_manager` database plus all tables and constraints.
+3. Update `.env` with your actual MySQL credentials:
+
+   ```dotenv
+   DATABASE_URL=mysql+pymysql://<user>:<password>@127.0.0.1:3306/task_manager
+   ```
+
+   Leave the password empty (`root:@`) only if you intentionally keep XAMPP's default root account without a password.
+4. Run the FastAPI app with the Python 3.10 interpreter (required for the current dependency set):
+
+   ```bash
+   C:/Users/Lenovo/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+   ```
+
 ## Usage
 
 ### Running the Application

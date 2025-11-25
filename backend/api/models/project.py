@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .user import UserSummary
 
@@ -24,20 +24,18 @@ class ProjectUpdate(BaseModel):
 
 
 class ProjectSlim(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     color: Optional[str] = None
 
-    class Config:
-        orm_mode = True
-
 
 class ProjectResponse(ProjectBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     owner: UserSummary
     members: List[UserSummary]
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        orm_mode = True
