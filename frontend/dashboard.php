@@ -84,12 +84,21 @@
                 <header class="modal__header">
                     <div>
                         <p class="eyebrow">Quick capture</p>
-                        <h2>Create personal task</h2>
-                        <p class="helper-text">Personal tasks stay private to your account.</p>
+                        <h2
+                            id="taskModalTitle"
+                            data-create-text="Create personal task"
+                            data-edit-text="Edit task"
+                        >Create personal task</h2>
+                        <p
+                            class="helper-text"
+                            id="taskModalSubtitle"
+                            data-create-text="Personal tasks stay private to your account."
+                            data-edit-text="Update task details. Status changes happen from the board."
+                        >Personal tasks stay private to your account.</p>
                     </div>
                     <button class="ghost-button" type="button" id="closeTaskModal">Close</button>
                 </header>
-                <form class="modal__form" id="taskForm">
+                <form class="modal__form" id="taskForm" data-mode="create">
                     <label>
                         <span>Title</span>
                         <input type="text" id="taskTitle" name="title" required placeholder="e.g. Prep sprint demo" />

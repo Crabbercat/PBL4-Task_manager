@@ -200,6 +200,7 @@ def update_task(
 
     update_data = task_update.dict(exclude_unset=True)
     update_data.pop("end_date", None)
+    effective_due_date = update_data.get("due_date", db_task.due_date)
 
     if "assignee_id" in update_data:
         if update_data["assignee_id"] is None:
@@ -225,9 +226,15 @@ def update_task(
     new_status = update_data.get("status")
     if new_status:
         if new_status == TaskStatus.DONE:
-            db_task.end_date = datetime.utcnow()
+            completed_at = datetime.utcnow()
+            if effective_due_date and completed_at > effective_due_date:
+                raise HTTPException(status_code=400, detail="Cannot mark task as done after its due date. Adjust the due date first.")
+            db_task.end_date = completed_at
         else:
             db_task.end_date = None
+    elif "due_date" in update_data and db_task.status == TaskStatus.DONE and db_task.end_date:
+        if effective_due_date and db_task.end_date > effective_due_date:
+            raise HTTPException(status_code=400, detail="Due date must be later than the completion time.")
 
     for key, value in update_data.items():
         setattr(db_task, key, value)

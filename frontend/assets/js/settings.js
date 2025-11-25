@@ -104,7 +104,7 @@ function initSettingsPage(token) {
             }
 
             setSettingsMessage(messageEl, "Profile updated.", "success");
-            autoClearMessage(messageEl);
+            autoClearMessage(messageEl, 3000, true);
             document.getElementById("settingsDisplayName").value = data.display_name || "";
             document.getElementById("settingsEmail").value = data.email || "";
             if (teamSelect) {
@@ -229,9 +229,10 @@ function initSettingsPage(token) {
             const successText = `${data.display_name || data.username} updated to ${data.role}.`;
             if (rowMessage) {
                 setSettingsMessage(rowMessage, successText, "success");
-                autoClearMessage(rowMessage);
+                autoClearMessage(rowMessage, 3000, true);
             } else {
                 showAdminMessage(successText, "success");
+                autoClearMessage(adminMessage || messageEl, 3000, true);
             }
         } catch (error) {
             if (rowMessage) {
@@ -337,7 +338,10 @@ function initSettingsPage(token) {
 
             if (teamFormMessage) {
                 setSettingsMessage(teamFormMessage, `Team ${data.name} created.`, "success");
-                autoClearMessage(teamFormMessage);
+                autoClearMessage(teamFormMessage, 3000, true);
+            } else {
+                showAdminMessage(`Team ${data.name} created.`, "success");
+                autoClearMessage(adminMessage || messageEl, 3000, true);
             }
             teamForm.reset();
             await Promise.all([
@@ -477,7 +481,10 @@ function initSettingsPage(token) {
 
             if (rowMessage) {
                 setSettingsMessage(rowMessage, `Team ${data.name} updated.`, "success");
-                autoClearMessage(rowMessage, 3000);
+                autoClearMessage(rowMessage, 3000, true);
+            } else {
+                showAdminMessage(`Team ${data.name} updated.`, "success");
+                autoClearMessage(adminMessage || messageEl, 3000, true);
             }
             scheduleTeamRefresh();
         } catch (error) {
@@ -523,7 +530,10 @@ function initSettingsPage(token) {
 
             if (rowMessage) {
                 setSettingsMessage(rowMessage, "Team removed.", "success");
-                autoClearMessage(rowMessage, 3000);
+                autoClearMessage(rowMessage, 3000, true);
+            } else {
+                showAdminMessage("Team removed.", "success");
+                autoClearMessage(adminMessage || messageEl, 3000, true);
             }
             scheduleTeamRefresh();
         } catch (error) {
@@ -558,18 +568,21 @@ function initSettingsPage(token) {
         }
     }
 
-    function autoClearMessage(element, timeout = 3000) {
+    function autoClearMessage(element, timeout = 3000, refreshAfter = false) {
         if (!element) {
             return;
         }
-        const timerId = Number(element.getAttribute("data-timer-id"));
-        if (timerId) {
-            clearTimeout(timerId);
+        const existing = Number(element.getAttribute("data-timer-id"));
+        if (existing) {
+            clearTimeout(existing);
         }
         const id = window.setTimeout(() => {
             element.textContent = "";
             element.className = "helper-text";
             element.removeAttribute("data-timer-id");
+            if (refreshAfter) {
+                window.location.reload();
+            }
         }, timeout);
         element.setAttribute("data-timer-id", String(id));
     }
