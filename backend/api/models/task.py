@@ -32,7 +32,8 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    project_id: int
+    project_id: Optional[int] = None
+    is_personal: bool = False
     assignee_id: Optional[int] = None
     parent_task_id: Optional[int] = None
 
@@ -64,7 +65,8 @@ class TaskResponse(BaseModel):
     end_date: Optional[datetime]
     due_date: Optional[datetime]
     tags: Optional[str]
-    project: ProjectSlim
+    project: Optional[ProjectSlim]
+    is_personal: bool
     creator: UserSummary
     assignee: Optional[UserSummary]
     parent_task_id: Optional[int]

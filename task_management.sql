@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS user (
     username VARCHAR(50) NOT NULL,
     email VARCHAR(100) NOT NULL,
     display_name VARCHAR(100) NULL,
-    team VARCHAR(100) NULL,
     team_id INT UNSIGNED NULL,
     hashed_password VARCHAR(128) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'user',
@@ -43,12 +42,11 @@ VALUES
     (3, 'Engineering', 'Engineering delivery team', 'admin')
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
-INSERT INTO user (username, email, display_name, team, team_id, hashed_password, role)
+INSERT INTO user (username, email, display_name, team_id, hashed_password, role)
 VALUES (
     'admin',
     'admin@example.com',
     'Administrator',
-    'Core Team',
     1,
     '$2b$12$qpdNg4ZMuuvMaxyMArDnRePGREI/g6z2Mo/Q98s9tviQZHxegq.Kq',
     'admin'
@@ -82,7 +80,8 @@ CREATE TABLE IF NOT EXISTS task (
     tags VARCHAR(200) NULL,
     creator_id INT UNSIGNED NOT NULL,
     assignee_id INT UNSIGNED NULL,
-    project_id INT UNSIGNED NOT NULL,
+    project_id INT UNSIGNED NULL,
+    is_personal TINYINT(1) NOT NULL DEFAULT 0,
     parent_task_id INT UNSIGNED NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
