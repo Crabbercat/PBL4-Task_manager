@@ -12,7 +12,7 @@
             </div>
             <div class="dashboard-actions">
                 <button class="ghost-button" type="button">New project</button>
-                <button class="primary-button primary-button--icon" type="button">
+                <button class="primary-button primary-button--icon" type="button" id="openTaskModal">
                     <span>+</span> Add task
                 </button>
             </div>
@@ -77,6 +77,70 @@
         <p id="emptyBoardMessage" class="helper-text helper-text--center" hidden>
             No tasks yet. Create one to kick off your sprint!
         </p>
+
+        <div class="modal" id="taskModal" hidden>
+            <div class="modal__overlay" data-modal-dismiss></div>
+            <div class="modal__content">
+                <header class="modal__header">
+                    <div>
+                        <p class="eyebrow">Quick capture</p>
+                        <h2>Create personal task</h2>
+                        <p class="helper-text">Personal tasks stay private to your account.</p>
+                    </div>
+                    <button class="ghost-button" type="button" id="closeTaskModal">Close</button>
+                </header>
+                <form class="modal__form" id="taskForm">
+                    <label>
+                        <span>Title</span>
+                        <input type="text" id="taskTitle" name="title" required placeholder="e.g. Prep sprint demo" />
+                    </label>
+                    <label>
+                        <span>Description</span>
+                        <textarea id="taskDescription" name="description" rows="3" placeholder="Optional details"></textarea>
+                    </label>
+                    <div class="modal__form-grid">
+                        <label>
+                            <span>Priority</span>
+                            <select id="taskPriority" name="priority">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Start date</span>
+                            <input type="datetime-local" id="taskStartDate" name="start_date" required />
+                        </label>
+                        <label class="modal__due-field">
+                            <span>Due date</span>
+                            <div class="modal__due-inputs">
+                                <input type="date" id="taskDueDate" name="due_date_date" />
+                                <div class="modal__time-selects" role="group" aria-label="Due time">
+                                    <div>
+                                        <span>Hour</span>
+                                        <select id="taskDueHour" name="due_hour" disabled></select>
+                                    </div>
+                                    <div>
+                                        <span>Minute</span>
+                                        <select id="taskDueMinute" name="due_minute" disabled></select>
+                                    </div>
+                                    <div>
+                                        <span>Second</span>
+                                        <select id="taskDueSecond" name="due_second" disabled></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="helper-text">Set date + time or leave blank if the task has no deadline.</small>
+                        </label>
+                    </div>
+                    <p class="helper-text" id="taskFormMessage"></p>
+                    <div class="modal__actions">
+                        <button class="ghost-button" type="button" id="taskCancelBtn">Cancel</button>
+                        <button class="primary-button" type="submit" id="taskSubmitBtn">Create task</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </main>
 </div>
 

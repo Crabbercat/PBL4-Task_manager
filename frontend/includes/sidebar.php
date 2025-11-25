@@ -40,6 +40,7 @@
     <nav class="sidebar__nav" aria-label="Primary">
         <p class="sidebar__label">Overview</p>
         <a class="sidebar__link <?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">📊 Dashboard</a>
+        <a class="sidebar__link <?php echo $currentPage === 'personal_tasks.php' ? 'active' : ''; ?>" href="personal_tasks.php">🗒️ Personal tasks</a>
         <a class="sidebar__link <?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>" href="settings.php">⚙️ Settings</a>
         <a class="sidebar__link" href="#">✅ Completed</a>
         <a class="sidebar__link" href="#">⏳ Pending</a>

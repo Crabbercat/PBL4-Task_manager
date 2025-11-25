@@ -505,11 +505,18 @@ button {
 
 .settings-form select {
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 12px 14px;
-    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(124, 93, 255, 0.45);
+    padding: 12px 42px 12px 14px;
+    background: linear-gradient(145deg, rgba(5, 10, 36, 0.9), rgba(24, 31, 72, 0.9));
     color: #fff;
+    box-shadow: 0 8px 18px rgba(5, 10, 36, 0.35);
     appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 12px;
 }
 
 .settings-form select:disabled {
@@ -517,10 +524,14 @@ button {
     cursor: not-allowed;
 }
 
-.settings-form select option,
+.settings-form select option {
+    color: #f8fafc;
+    background: #050a24;
+}
+
 .role-row select option {
-    color: #0f172a;
-    background: #fff;
+    color: #f8fafc;
+    background: #050a24;
 }
 
 .settings-form button {
@@ -567,11 +578,19 @@ button {
 }
 
 .role-row select {
-    border-radius: 12px;
-    padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
+    padding: 10px 38px 10px 14px;
+    background: linear-gradient(145deg, rgba(5, 10, 36, 0.9), rgba(24, 31, 72, 0.9));
+    border: 1px solid rgba(124, 93, 255, 0.45);
     color: #fff;
+    box-shadow: 0 8px 18px rgba(5, 10, 36, 0.35);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
 }
 
 .role-row__actions {
@@ -631,6 +650,28 @@ button {
     color: #fff;
 }
 
+.team-row__fields select {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid rgba(124, 93, 255, 0.4);
+    padding: 10px 38px 10px 14px;
+    background: linear-gradient(145deg, rgba(5, 10, 36, 0.88), rgba(20, 28, 66, 0.92));
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(5, 10, 36, 0.35);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+}
+
+.team-row__fields select option {
+    background: #050a24;
+    color: #f8fafc;
+}
+
 .team-row__actions {
     display: flex;
     gap: 10px;
@@ -667,6 +708,84 @@ button {
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+}
+
+.personal-main .dashboard-header {
+    align-items: flex-end;
+}
+
+.personal-actions {
+    text-align: right;
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+}
+
+.personal-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: rgba(248, 250, 252, 0.8);
+}
+
+.personal-filter select {
+    border-radius: 16px;
+    border: 1px solid rgba(124, 93, 255, 0.45);
+    padding: 10px 38px 10px 14px;
+    background: linear-gradient(145deg, rgba(5, 10, 36, 0.9), rgba(24, 31, 72, 0.9));
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(5, 10, 36, 0.45);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    position: relative;
+    min-width: 150px;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 12px;
+}
+
+.personal-filter select option {
+    background: #050a24;
+    color: #f8fafc;
+}
+
+.personal-task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.personal-task-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 22px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.personal-task-card h3 {
+    font-size: 1.2rem;
+    margin: 6px 0;
+}
+
+.personal-task-card__status {
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.75rem;
+    color: rgba(248, 250, 252, 0.6);
+}
+
+.personal-task-card__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: rgba(248, 250, 252, 0.85);
+    min-width: 160px;
 }
 
 .user-chip {
@@ -808,4 +927,137 @@ button {
     text-align: center;
     color: rgba(248, 250, 252, 0.6);
     padding: 16px 0;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modal[hidden] {
+    display: none;
+}
+
+.modal__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 10, 36, 0.7);
+    backdrop-filter: blur(6px);
+}
+
+.modal__content {
+    position: relative;
+    background: var(--bg-card);
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 32px;
+    width: min(520px, calc(100% - 32px));
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    z-index: 1;
+}
+
+.modal__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.modal__header h2 {
+    font-size: 1.5rem;
+    color: var(--text-light);
+}
+
+.modal__form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal__form label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: rgba(248, 250, 252, 0.9);
+}
+
+.modal__form input,
+.modal__form textarea,
+.modal__form select {
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    padding: 12px 14px;
+    font-size: 1rem;
+}
+
+.modal__form select {
+    border-color: rgba(124, 93, 255, 0.45);
+    background: linear-gradient(145deg, rgba(5, 10, 36, 0.9), rgba(24, 31, 72, 0.9));
+    padding-right: 42px;
+    box-shadow: 0 10px 22px rgba(5, 10, 36, 0.4);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 12px;
+}
+
+.modal__form select option {
+    background: #050a24;
+    color: #f8fafc;
+}
+
+.modal__form textarea {
+    resize: vertical;
+    min-height: 90px;
+}
+
+.modal__form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.modal__due-field {
+    grid-column: 1 / -1;
+}
+
+.modal__due-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.modal__time-selects {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 12px;
+}
+
+.modal__time-selects div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.modal__time-selects span {
+    font-size: 0.75rem;
+    color: rgba(248, 250, 252, 0.7);
+    letter-spacing: 0.05em;
+}
+
+.modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
 }

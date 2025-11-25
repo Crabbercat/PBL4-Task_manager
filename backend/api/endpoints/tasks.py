@@ -4,7 +4,7 @@ from typing import List, Optional, Set
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session, joinedload
 
-from ..models.task import TaskCreate, TaskResponse, TaskUpdate
+from ..models.task import TaskCreate, TaskResponse, TaskStatus, TaskUpdate
 from ...core.security import get_user_by_token
 from ...db.database import get_db
 from ...db.db_structure import Project, Task, User
@@ -12,6 +12,12 @@ from ...db.db_structure import Project, Task, User
 router = APIRouter()
 
 active_connections: Set[WebSocket] = set()
+
+
+def _prepare_task_dates(task_data: dict, start_date: Optional[datetime]):
+    """Ensure start/end dates follow the creation rules."""
+    task_data["start_date"] = start_date or datetime.utcnow()
+    task_data["end_date"] = None
 
 
 def _get_user_or_404(db: Session, username: str) -> User:
@@ -57,24 +63,41 @@ async def websocket_endpoint(client_id: int, websocket: WebSocket):
 @router.post("/tasks/", response_model=TaskResponse, status_code=201)
 def create_task(task: TaskCreate, db: Session = Depends(get_db), username: str = Depends(get_user_by_token)):
     current_user = _get_user_or_404(db, username)
-    project = _get_project_or_404(db, task.project_id)
-    _ensure_project_member(current_user, project)
 
-    assignee = None
-    if task.assignee_id:
-        assignee = db.query(User).filter(User.id == task.assignee_id).first()
-        if assignee is None:
-            raise HTTPException(status_code=404, detail="Assignee not found")
-        _ensure_project_member(assignee, project)
+    if task.is_personal:
+        if task.project_id is not None:
+            raise HTTPException(status_code=400, detail="Personal tasks cannot belong to a project")
+        if task.parent_task_id is not None:
+            raise HTTPException(status_code=400, detail="Personal tasks do not support subtasks yet")
+        if task.assignee_id and task.assignee_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Personal tasks can only be assigned to yourself")
+        task_data = task.dict(exclude_unset=True, exclude={"project_id"})
+        task_data["project_id"] = None
+        task_data["assignee_id"] = current_user.id
+        task_data["creator_id"] = current_user.id
+        task_data["is_personal"] = True
+    else:
+        if task.project_id is None:
+            raise HTTPException(status_code=400, detail="Project is required for team tasks")
+        project = _get_project_or_404(db, task.project_id)
+        _ensure_project_member(current_user, project)
 
-    parent_task = None
-    if task.parent_task_id:
-        parent_task = db.query(Task).filter(Task.id == task.parent_task_id).first()
-        if parent_task is None or parent_task.project_id != project.id:
-            raise HTTPException(status_code=400, detail="Invalid parent task")
+        if task.assignee_id:
+            assignee = db.query(User).filter(User.id == task.assignee_id).first()
+            if assignee is None:
+                raise HTTPException(status_code=404, detail="Assignee not found")
+            _ensure_project_member(assignee, project)
 
-    task_data = task.dict(exclude_unset=True)
-    task_data["creator_id"] = current_user.id
+        if task.parent_task_id:
+            parent_task = db.query(Task).filter(Task.id == task.parent_task_id).first()
+            if parent_task is None or parent_task.project_id != project.id:
+                raise HTTPException(status_code=400, detail="Invalid parent task")
+
+        task_data = task.dict(exclude_unset=True)
+        task_data["creator_id"] = current_user.id
+
+    _prepare_task_dates(task_data, task.start_date)
+
     db_task = Task(**task_data)
     db.add(db_task)
     db.commit()
@@ -111,6 +134,26 @@ def read_tasks(
     return tasks
 
 
+@router.get("/tasks/personal/", response_model=List[TaskResponse])
+def read_personal_tasks(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    username: str = Depends(get_user_by_token)
+):
+    current_user = _get_user_or_404(db, username)
+    tasks = (
+        db.query(Task)
+        .options(joinedload(Task.project), joinedload(Task.assignee), joinedload(Task.creator))
+        .filter(Task.is_personal == True, Task.creator_id == current_user.id)
+        .order_by(Task.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return tasks
+
+
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 def read_task(task_id: int, db: Session = Depends(get_db), username: str = Depends(get_user_by_token)):
     current_user = _get_user_or_404(db, username)
@@ -122,6 +165,12 @@ def read_task(task_id: int, db: Session = Depends(get_db), username: str = Depen
     )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.is_personal:
+        if task.creator_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You cannot view this personal task")
+        return task
+
     _ensure_project_member(current_user, task.project)
     return task
 
@@ -142,9 +191,15 @@ def update_task(
     )
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    _ensure_project_member(current_user, db_task.project)
+
+    if db_task.is_personal:
+        if db_task.creator_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You cannot modify this personal task")
+    else:
+        _ensure_project_member(current_user, db_task.project)
 
     update_data = task_update.dict(exclude_unset=True)
+    update_data.pop("end_date", None)
 
     if "assignee_id" in update_data:
         if update_data["assignee_id"] is None:
@@ -167,6 +222,13 @@ def update_task(
                 raise HTTPException(status_code=400, detail="Invalid parent task")
             db_task.parent_task_id = parent_id
 
+    new_status = update_data.get("status")
+    if new_status:
+        if new_status == TaskStatus.DONE:
+            db_task.end_date = datetime.utcnow()
+        else:
+            db_task.end_date = None
+
     for key, value in update_data.items():
         setattr(db_task, key, value)
 
@@ -187,9 +249,14 @@ def delete_task(task_id: int, db: Session = Depends(get_db), username: str = Dep
     )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    _ensure_project_member(current_user, task.project)
-    if current_user.id not in {task.project.owner_id, task.creator_id}:
-        raise HTTPException(status_code=403, detail="Only the project owner or task creator can delete this task")
+
+    if task.is_personal:
+        if task.creator_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Only the creator can delete this personal task")
+    else:
+        _ensure_project_member(current_user, task.project)
+        if current_user.id not in {task.project.owner_id, task.creator_id}:
+            raise HTTPException(status_code=403, detail="Only the project owner or task creator can delete this task")
     db.delete(task)
     db.commit()
     return task

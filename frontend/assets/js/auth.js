@@ -275,3 +275,39 @@ async function populateTeamSelect() {
         }
     }
 }
+
+function buildApiUrl(path = "") {
+    if (!path) {
+        return API_BASE_URL;
+    }
+    if (/^https?:/i.test(path)) {
+        return path;
+    }
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${API_BASE_URL}${normalizedPath}`;
+}
+
+async function authedFetch(path, options = {}) {
+    const token = localStorage.getItem("tm_access_token");
+    if (!token) {
+        logout();
+        throw new Error("Authentication required");
+    }
+
+    const headers = {
+        ...(options.headers || {}),
+        "Authorization": `Bearer ${token}`
+    };
+
+    const response = await fetch(buildApiUrl(path), {
+        ...options,
+        headers
+    });
+
+    if (response.status === 401) {
+        logout();
+        throw new Error("Session expired");
+    }
+
+    return response;
+}

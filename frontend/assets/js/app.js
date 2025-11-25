@@ -25,10 +25,19 @@ function initDashboard() {
             completed: document.getElementById("completedTasksStat"),
             upcoming: document.getElementById("upcomingTasksStat")
         },
-        boardMessage: document.getElementById("emptyBoardMessage")
+        boardMessage: document.getElementById("emptyBoardMessage"),
+        taskModal: document.getElementById("taskModal"),
+        taskForm: document.getElementById("taskForm"),
+        taskMessage: document.getElementById("taskFormMessage"),
+        taskSubmitBtn: document.getElementById("taskSubmitBtn"),
+        taskCancelBtn: document.getElementById("taskCancelBtn"),
+        openTaskBtn: document.getElementById("openTaskModal"),
+        closeTaskBtn: document.getElementById("closeTaskModal")
     };
 
     fetchTasks();
+
+    setupTaskModal();
 }
 
 async function fetchTasks() {
@@ -99,6 +108,148 @@ function setBoardMessage(message) {
     dashboardRefs.boardMessage.textContent = message;
 }
 
+function setupTaskModal() {
+    if (!dashboardRefs?.taskModal) {
+        return;
+    }
+    dashboardRefs.openTaskBtn?.addEventListener("click", openTaskModal);
+    dashboardRefs.closeTaskBtn?.addEventListener("click", closeTaskModal);
+    dashboardRefs.taskCancelBtn?.addEventListener("click", closeTaskModal);
+    dashboardRefs.taskModal.addEventListener("click", event => {
+        if (event.target?.dataset?.modalDismiss !== undefined) {
+            closeTaskModal();
+        }
+    });
+    dashboardRefs.taskForm?.addEventListener("submit", handlePersonalTaskSubmit);
+    populateDueTimeSelects();
+    setDefaultStartDate();
+}
+
+function populateDueTimeSelects() {
+    const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+    const minutesSeconds = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+
+    const hourSelect = document.getElementById("taskDueHour");
+    const minuteSelect = document.getElementById("taskDueMinute");
+    const secondSelect = document.getElementById("taskDueSecond");
+
+    if (hourSelect && hourSelect.options.length === 0) {
+        hourSelect.innerHTML = hours.map(value => `<option value="${value}">${value}</option>`).join("");
+    }
+    if (minuteSelect && minuteSelect.options.length === 0) {
+        minuteSelect.innerHTML = minutesSeconds.map(value => `<option value="${value}">${value}</option>`).join("");
+    }
+    if (secondSelect && secondSelect.options.length === 0) {
+        secondSelect.innerHTML = minutesSeconds.map(value => `<option value="${value}">${value}</option>`).join("");
+    }
+
+    const dueDateInput = document.getElementById("taskDueDate");
+    dueDateInput?.addEventListener("change", event => {
+        const enabled = Boolean(event.target.value);
+        toggleDueTimeSelects(enabled);
+    });
+
+    toggleDueTimeSelects(false, true);
+}
+
+function openTaskModal() {
+    dashboardRefs.taskModal?.removeAttribute("hidden");
+    setDefaultStartDate();
+    toggleDueTimeSelects(false, true);
+    dashboardRefs.taskModal?.querySelector("input[name='title']")?.focus();
+}
+
+function closeTaskModal() {
+    if (!dashboardRefs?.taskModal) {
+        return;
+    }
+    dashboardRefs.taskModal.setAttribute("hidden", "true");
+    dashboardRefs.taskForm?.reset();
+    setDefaultStartDate();
+    toggleDueTimeSelects(false, true);
+    setTaskFormMessage("", "");
+}
+
+async function handlePersonalTaskSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const title = form.title.value.trim();
+    if (!title) {
+        setTaskFormMessage("Title is required", "error");
+        return;
+    }
+
+    const startDateValue = form.start_date.value;
+    if (!startDateValue) {
+        setTaskFormMessage("Start date is required", "error");
+        return;
+    }
+
+    const token = localStorage.getItem("tm_access_token");
+    if (!token) {
+        logout();
+        return;
+    }
+
+    const dueDate = form.due_date_date.value;
+    let dueDateIso = null;
+    if (dueDate) {
+        const hour = form.due_hour.value || "00";
+        const minute = form.due_minute.value || "00";
+        const second = form.due_second.value || "00";
+        dueDateIso = new Date(`${dueDate}T${hour}:${minute}:${second}`).toISOString();
+    }
+
+    const payload = {
+        title,
+        description: form.description.value.trim() || null,
+        priority: form.priority.value,
+        start_date: new Date(startDateValue).toISOString(),
+        due_date: dueDateIso,
+        is_personal: true
+    };
+
+    setTaskFormMessage("", "");
+    setLoading(dashboardRefs.taskSubmitBtn, true, "Creating...");
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/tasks/`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.detail || "Unable to create task");
+        }
+
+        setTaskFormMessage("Personal task created! Redirecting...", "success");
+        form.reset();
+
+        setTimeout(() => {
+            window.location.href = "http://localhost/task_management/personal_tasks.php";
+        }, 800);
+    } catch (error) {
+        setTaskFormMessage(error.message, "error");
+    } finally {
+        setLoading(dashboardRefs.taskSubmitBtn, false, "Create task");
+    }
+}
+
+function setTaskFormMessage(text, state) {
+    const el = dashboardRefs?.taskMessage;
+    if (!el) return;
+    el.textContent = text;
+    el.className = "helper-text";
+    if (state) {
+        el.classList.add(state);
+    }
+}
+
 function createTaskCard(task) {
     const safeTitle = escapeHtml(task.title);
     const safeDescription = escapeHtml(task.description || "No description yet");
@@ -163,4 +314,36 @@ function escapeHtml(text) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function setDefaultStartDate() {
+    const input = document.getElementById("taskStartDate");
+    if (!input) {
+        return;
+    }
+    input.value = formatDateTimeLocal(new Date());
+}
+
+function formatDateTimeLocal(date) {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(date.getTime() - tzOffset).toISOString();
+    return localISOTime.slice(0, 16);
+}
+
+function toggleDueTimeSelects(enabled, resetValue = false) {
+    const selects = [
+        document.getElementById("taskDueHour"),
+        document.getElementById("taskDueMinute"),
+        document.getElementById("taskDueSecond")
+    ];
+
+    selects.forEach(select => {
+        if (!select) {
+            return;
+        }
+        select.disabled = !enabled;
+        if (resetValue || !enabled) {
+            select.selectedIndex = 0;
+        }
+    });
 }
