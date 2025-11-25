@@ -24,7 +24,7 @@ async function fetchPersonalTasks() {
     personalTaskState.list.innerHTML = '<p class="helper-text">Loading personal tasks...</p>';
 
     try {
-        const response = await authedFetch("/api/v1/tasks/personal/");
+        const response = await authedFetch("/tasks/personal/");
         const payload = await response.json().catch(() => []);
 
         if (!response.ok) {
