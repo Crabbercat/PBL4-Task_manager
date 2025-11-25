@@ -529,8 +529,18 @@ button {
 
 .role-row__controls {
     display: flex;
-    gap: 12px;
-    align-items: center;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.role-pill {
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 0.95rem;
+    color: #fff;
 }
 
 .role-row select {
@@ -541,8 +551,16 @@ button {
     color: #fff;
 }
 
+.role-row__actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 .role-row__message {
-    margin-top: 6px;
+    margin-top: 2px;
+    width: 100%;
 }
 
 .team-list {
@@ -553,12 +571,12 @@ button {
 
 .team-row {
     display: flex;
+    flex-direction: column;
     gap: 16px;
     padding: 18px;
     border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.02);
-    flex-wrap: wrap;
 }
 
 .team-row__fields {
@@ -566,6 +584,19 @@ button {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
+}
+
+.team-row__label-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.team-row__label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(248, 250, 252, 0.65);
 }
 
 .team-row__fields input {
@@ -581,10 +612,11 @@ button {
     display: flex;
     gap: 10px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .team-row__message {
-    flex-basis: 100%;
+    width: 100%;
 }
 
 .ghost-button--danger {

@@ -25,6 +25,7 @@ function initSettingsPage(token) {
     const teamFormMessage = document.getElementById("teamFormMessage");
     const teamList = document.getElementById("teamList");
     const teamSaveBtn = document.getElementById("teamSaveBtn");
+    let teamRefreshTimer;
     let cachedTeams = [];
 
     const teamsPromise = loadPublicTeams();
@@ -99,17 +100,19 @@ function initSettingsPage(token) {
 
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.detail || "Failed to update profile");
+                throw new Error(data.detail || "Unable to update profile");
             }
 
             setSettingsMessage(messageEl, "Profile updated.", "success");
+            autoClearMessage(messageEl);
             document.getElementById("settingsDisplayName").value = data.display_name || "";
+            document.getElementById("settingsEmail").value = data.email || "";
             if (teamSelect) {
                 teamSelect.value = String(data.team_id ?? 0);
             }
-
         } catch (error) {
             setSettingsMessage(messageEl, error.message, "error");
+            autoClearMessage(messageEl);
         } finally {
             setLoading(saveBtn, false, "Save changes");
         }
@@ -148,25 +151,28 @@ function initSettingsPage(token) {
         userRoleList.innerHTML = users.map(user => {
             const isAdminUser = user.username === "admin";
             const teamLabel = user.team_name || (user.team && user.team.name) || "No team";
-            const roleOptions = isAdminUser
-                ? '<option value="admin" selected>Workspace Admin</option>'
+            const roleControls = isAdminUser
+                ? '<div class="role-row__actions"><span class="role-pill">Workspace Admin</span></div>'
                 : `
-                    <option value="user" ${user.role === 'user' ? 'selected' : ''}>Project Contributor</option>
-                    <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>Project Manager</option>
+                    <div class="role-row__actions">
+                        <select data-role-select>
+                            <option value="user" ${user.role === "user" ? "selected" : ""}>Member</option>
+                            <option value="manager" ${user.role === "manager" ? "selected" : ""}>Manager</option>
+                        </select>
+                        <button type="button" class="ghost-button role-save-btn">Update</button>
+                    </div>
                 `;
 
             return `
                 <div class="role-row" data-user-id="${user.id}">
                     <div>
                         <strong>${escapeHtml(user.display_name || user.username)}</strong>
-                        <p class="helper-text">${escapeHtml(user.email)}</p>
+                        <p class="helper-text">Username:${escapeHtml(user.username)}</p>
+                        <p class="helper-text">Email: ${escapeHtml(user.email)}</p>
                         <p class="helper-text">Team: ${escapeHtml(teamLabel)}</p>
                     </div>
                     <div class="role-row__controls">
-                        <select ${isAdminUser ? 'disabled' : ''} data-role-select>
-                            ${roleOptions}
-                        </select>
-                        <button type="button" class="ghost-button role-save-btn" ${isAdminUser ? 'disabled' : ''}>Update</button>
+                        ${roleControls}
                         <p class="helper-text role-row__message" data-role-message></p>
                     </div>
                 </div>
@@ -220,14 +226,17 @@ function initSettingsPage(token) {
                 throw new Error(data.detail || "Unable to update role");
             }
 
+            const successText = `${data.display_name || data.username} updated to ${data.role}.`;
             if (rowMessage) {
-                setSettingsMessage(rowMessage, `${data.display_name || data.username} updated to ${data.role}.`, "success");
+                setSettingsMessage(rowMessage, successText, "success");
+                autoClearMessage(rowMessage);
             } else {
-                showAdminMessage(`${data.display_name || data.username} updated.`, "success");
+                showAdminMessage(successText, "success");
             }
         } catch (error) {
             if (rowMessage) {
                 setSettingsMessage(rowMessage, error.message, "error");
+                autoClearMessage(rowMessage);
             } else {
                 showAdminMessage(error.message, "error");
             }
@@ -240,7 +249,17 @@ function initSettingsPage(token) {
     teamForm?.addEventListener("submit", handleTeamCreate);
     fetchProfile();
 
-    async function loadPublicTeams(selectedId) {
+    async function loadPublicTeams(selectedIdOrOptions) {
+        let selectedId;
+        let preserveSelection = false;
+        if (typeof selectedIdOrOptions === "object" && selectedIdOrOptions !== null) {
+            selectedId = selectedIdOrOptions.selectedId;
+            preserveSelection = Boolean(selectedIdOrOptions.preserveSelection);
+        } else {
+            selectedId = selectedIdOrOptions;
+        }
+
+        const preservedValue = preserveSelection && teamSelect ? teamSelect.value : undefined;
         if (teamSelect) {
             setTeamSelectLoading(true);
         }
@@ -253,7 +272,8 @@ function initSettingsPage(token) {
             }
 
             cachedTeams = Array.isArray(teams) ? teams : [];
-            populateTeamSelect(selectedId);
+            const valueToSelect = selectedId !== undefined ? selectedId : preservedValue;
+            populateTeamSelect(valueToSelect);
         } catch (error) {
             populateTeamSelect();
             showAdminMessage(error.message, "error");
@@ -317,6 +337,7 @@ function initSettingsPage(token) {
 
             if (teamFormMessage) {
                 setSettingsMessage(teamFormMessage, `Team ${data.name} created.`, "success");
+                autoClearMessage(teamFormMessage);
             }
             teamForm.reset();
             await Promise.all([
@@ -326,6 +347,7 @@ function initSettingsPage(token) {
         } catch (error) {
             if (teamFormMessage) {
                 setSettingsMessage(teamFormMessage, error.message, "error");
+                autoClearMessage(teamFormMessage);
             } else {
                 showAdminMessage(error.message, "error");
             }
@@ -375,8 +397,14 @@ function initSettingsPage(token) {
         teamList.innerHTML = teams.map(team => `
             <div class="team-row" data-team-id="${team.id}">
                 <div class="team-row__fields">
-                    <input type="text" data-team-name value="${escapeHtml(team.name)}" />
-                    <input type="text" data-team-description value="${escapeHtml(team.description || "")}" placeholder="Description" />
+                    <label class="team-row__label-group">
+                        <span class="team-row__label">Team name</span>
+                        <input type="text" data-team-name value="${escapeHtml(team.name)}" />
+                    </label>
+                    <label class="team-row__label-group">
+                        <span class="team-row__label">Description</span>
+                        <input type="text" data-team-description value="${escapeHtml(team.description || "")}" placeholder="Description" />
+                    </label>
                 </div>
                 <div class="team-row__actions">
                     <button type="button" class="ghost-button" data-team-action="save">Save</button>
@@ -449,14 +477,13 @@ function initSettingsPage(token) {
 
             if (rowMessage) {
                 setSettingsMessage(rowMessage, `Team ${data.name} updated.`, "success");
+                autoClearMessage(rowMessage, 3000);
             }
-            await Promise.all([
-                loadAdminTeams(),
-                loadPublicTeams(data.id)
-            ]);
+            scheduleTeamRefresh();
         } catch (error) {
             if (rowMessage) {
                 setSettingsMessage(rowMessage, error.message, "error");
+                autoClearMessage(rowMessage, 3000);
             } else {
                 showAdminMessage(error.message, "error");
             }
@@ -496,14 +523,13 @@ function initSettingsPage(token) {
 
             if (rowMessage) {
                 setSettingsMessage(rowMessage, "Team removed.", "success");
+                autoClearMessage(rowMessage, 3000);
             }
-            await Promise.all([
-                loadAdminTeams(),
-                loadPublicTeams()
-            ]);
+            scheduleTeamRefresh();
         } catch (error) {
             if (rowMessage) {
                 setSettingsMessage(rowMessage, error.message, "error");
+                autoClearMessage(rowMessage, 3000);
             } else {
                 showAdminMessage(error.message, "error");
             }
@@ -530,6 +556,33 @@ function initSettingsPage(token) {
         } else {
             teamSelect.disabled = false;
         }
+    }
+
+    function autoClearMessage(element, timeout = 3000) {
+        if (!element) {
+            return;
+        }
+        const timerId = Number(element.getAttribute("data-timer-id"));
+        if (timerId) {
+            clearTimeout(timerId);
+        }
+        const id = window.setTimeout(() => {
+            element.textContent = "";
+            element.className = "helper-text";
+            element.removeAttribute("data-timer-id");
+        }, timeout);
+        element.setAttribute("data-timer-id", String(id));
+    }
+
+    function scheduleTeamRefresh(delay = 3000) {
+        if (teamRefreshTimer) {
+            clearTimeout(teamRefreshTimer);
+        }
+        teamRefreshTimer = window.setTimeout(() => {
+            loadAdminTeams();
+            loadPublicTeams({ preserveSelection: true });
+            teamRefreshTimer = null;
+        }, delay);
     }
 }
 
