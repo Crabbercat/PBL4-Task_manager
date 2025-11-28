@@ -115,18 +115,40 @@ def read_tasks(
 ):
     current_user = _get_user_or_404(db, username)
     project_ids = _project_ids_for_user(current_user)
+    
+    # If a specific project is requested, strictly filter by it
     if project_id:
         if project_id not in project_ids:
             raise HTTPException(status_code=403, detail="Project access denied")
-        project_ids = [project_id]
+        
+        tasks = (
+            db.query(Task)
+            .options(joinedload(Task.project), joinedload(Task.assignee), joinedload(Task.creator))
+            .filter(Task.project_id == project_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        return tasks
 
-    if not project_ids:
-        return []
-
+    # Otherwise, return all tasks visible to the user:
+    # 1. Tasks in projects they are a member of
+    # 2. Personal tasks they created
+    
+    # We need to handle the case where project_ids is empty
+    project_filter = Task.project_id.in_(project_ids) if project_ids else False
+    
+    from sqlalchemy import or_, and_
+    
     tasks = (
         db.query(Task)
         .options(joinedload(Task.project), joinedload(Task.assignee), joinedload(Task.creator))
-        .filter(Task.project_id.in_(project_ids))
+        .filter(
+            or_(
+                project_filter,
+                and_(Task.is_personal == True, Task.creator_id == current_user.id)
+            )
+        )
         .offset(skip)
         .limit(limit)
         .all()

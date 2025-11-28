@@ -122,37 +122,7 @@ function setupTaskModal() {
 }
 
 function handleTaskActionClick(event) {
-    const editBtn = event.target.closest("[data-edit-task]");
-    if (editBtn) {
-        const taskId = Number(editBtn.getAttribute("data-edit-task"));
-        const task = findTaskById(taskId);
-        if (task) {
-            openTaskModal(task);
-        }
-        return;
-    }
-
-    const select = event.target.closest("select[data-status-select]");
-    if (select) {
-        const taskId = Number(select.getAttribute("data-status-select"));
-        const task = findTaskById(taskId);
-        if (!task) {
-            return;
-        }
-
-        const newStatus = select.value;
-        if (newStatus === task.status) {
-            return;
-        }
-
-        const confirmChange = window.confirm(`Update status to ${humanize(newStatus)}?`);
-        if (!confirmChange) {
-            select.value = task.status;
-            return;
-        }
-
-        updateTaskStatus(taskId, newStatus, select);
-    }
+    // No longer handling edit clicks or status changes here
 }
 
 function findTaskById(taskId) {
@@ -557,13 +527,7 @@ function createTaskCard(task) {
                 <span>Start: ${formatDate(task.start_date)}</span>
             </div>
             <div class="task-card__actions">
-                <label class="task-status-control">
-                    <span>Status</span>
-                    <select data-status-select="${task.id}">
-                        ${renderStatusSelectOptions(task.status)}
-                    </select>
-                </label>
-                <button class="ghost-button" type="button" data-edit-task="${task.id}">Edit details</button>
+                <a href="personal_tasks.php?highlight_task_id=${task.id}" class="ghost-button">Edit details</a>
             </div>
         </article>
     `;

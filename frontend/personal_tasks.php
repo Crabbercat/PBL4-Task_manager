@@ -52,6 +52,10 @@
                             </select>
                         </label>
                         <label>
+                            <span>Start date</span>
+                            <input type="datetime-local" name="start_date" id="personalTaskStartDate" />
+                        </label>
+                        <label>
                             <span>Due date</span>
                             <input type="datetime-local" name="due_date" id="personalTaskDueDate" />
                         </label>

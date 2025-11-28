@@ -1071,31 +1071,10 @@ button {
 
 .task-meta {
     display: flex;
-    justify-content: space-between;
+    gap: 16px;
     font-size: 0.85rem;
-    color: rgba(248, 250, 252, 0.7);
-}
-
-.task-meta span {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.task-card__actions {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-}
-
-.task-status-control {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 1;
-    min-width: 180px;
+    color: var(--text-muted);
+    margin-top: auto;
 }
 
 .task-status-control select {
@@ -1113,8 +1092,15 @@ button {
     background-size: 12px;
 }
 
-.task-card__actions button {
-    align-self: flex-start;
+.task-card__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+.task-card__actions button,
+.task-card__actions a {
+    align-self: center;
 }
 
 .empty-state {
@@ -1361,4 +1347,25 @@ button {
     background: rgba(251, 146, 60, 0.15);
     color: var(--orange);
     border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+@keyframes pulse-zoom {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(124, 93, 255, 0.7);
+    }
+
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(124, 93, 255, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(124, 93, 255, 0);
+    }
+}
+
+.pulse-animation {
+    animation: pulse-zoom 2s infinite;
 }

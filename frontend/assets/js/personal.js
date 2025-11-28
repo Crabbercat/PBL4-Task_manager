@@ -30,7 +30,29 @@ function initPersonalTasks() {
     personalTaskState.board.addEventListener("click", handleBoardClick);
     personalTaskState.board.addEventListener("change", handleBoardChange);
     setupPersonalModal();
-    fetchPersonalTasks();
+    fetchPersonalTasks().then(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const highlightTaskId = urlParams.get("highlight_task_id");
+
+        if (highlightTaskId) {
+            const taskCard = document.querySelector(`.personal-task-card[data-task-id="${highlightTaskId}"]`);
+            if (taskCard) {
+                taskCard.scrollIntoView({ behavior: "smooth", block: "center" });
+                const editBtn = taskCard.querySelector("[data-edit-task]");
+                if (editBtn) {
+                    editBtn.classList.add("pulse-animation");
+                    // Remove animation after 6 seconds (3 cycles)
+                    setTimeout(() => {
+                        editBtn.classList.remove("pulse-animation");
+                    }, 6000);
+                }
+
+                // Clean up URL
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({ path: newUrl }, "", newUrl);
+            }
+        }
+    });
 }
 
 async function fetchPersonalTasks() {
@@ -212,6 +234,7 @@ function fillPersonalTaskForm(task) {
     personalTaskState.form.description.value = task.description || "";
     personalTaskState.form.priority.value = (task.priority || "medium").toLowerCase();
     personalTaskState.form.status.value = (task.status || "to_do").toLowerCase();
+    personalTaskState.form.start_date.value = task.start_date ? toLocalDateTime(task.start_date) : "";
     personalTaskState.form.due_date.value = task.due_date ? toLocalDateTime(task.due_date) : "";
 }
 
@@ -258,6 +281,18 @@ function buildPersonalTaskPayload(form) {
         status: form.status.value
     };
 
+    const start = form.start_date.value;
+    if (start) {
+        const startDate = new Date(start);
+        if (Number.isNaN(startDate.getTime())) {
+            setPersonalFormMessage("Invalid start date", "error");
+            return null;
+        }
+        payload.start_date = startDate.toISOString();
+    } else {
+        payload.start_date = null;
+    }
+
     const due = form.due_date.value;
     if (due) {
         const dueDate = new Date(due);
@@ -285,6 +320,7 @@ function rememberPersonalTaskBaseline(task) {
         description: task.description || null,
         priority: (task.priority || "medium").toLowerCase(),
         status: (task.status || "to_do").toLowerCase(),
+        start_date: safeIsoString(task.start_date),
         due_date: safeIsoString(task.due_date),
         completed: Boolean(task.completed)
     });
@@ -296,6 +332,7 @@ function normalizePersonalPayload(payload) {
         description: payload.description || null,
         priority: (payload.priority || "medium").toLowerCase(),
         status: (payload.status || "to_do").toLowerCase(),
+        start_date: payload.start_date || null,
         due_date: payload.due_date || null,
         completed: Boolean(payload.completed)
     };
