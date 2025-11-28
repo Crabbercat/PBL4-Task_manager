@@ -33,19 +33,21 @@ function initPersonalTasks() {
     fetchPersonalTasks().then(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const highlightTaskId = urlParams.get("highlight_task_id");
+        console.log("Highlight Task ID:", highlightTaskId);
 
         if (highlightTaskId) {
             const taskCard = document.querySelector(`.personal-task-card[data-task-id="${highlightTaskId}"]`);
+            console.log("Task Card Found:", taskCard);
+
             if (taskCard) {
                 taskCard.scrollIntoView({ behavior: "smooth", block: "center" });
-                const editBtn = taskCard.querySelector("[data-edit-task]");
-                if (editBtn) {
-                    editBtn.classList.add("pulse-animation");
-                    // Remove animation after 6 seconds (3 cycles)
-                    setTimeout(() => {
-                        editBtn.classList.remove("pulse-animation");
-                    }, 6000);
-                }
+
+                console.log("Adding pulse class");
+                taskCard.classList.add("card-highlight-pulse");
+                // Remove animation after 3 seconds (2 cycles)
+                setTimeout(() => {
+                    taskCard.classList.remove("card-highlight-pulse");
+                }, 3000);
 
                 // Clean up URL
                 const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
@@ -143,8 +145,14 @@ function renderPersonalTaskCard(task) {
                 </div>
             </div>
             <div class="personal-task-card__meta">
-                <span>Priority: <strong>${priority || 'N/A'}</strong></span>
-                <span>Due: <strong>${due}</strong></span>
+                <span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l4 4M12 2 8 6M12 22l4-4M12 22l-4-4"/></svg>
+                    <strong>${priority || 'N/A'}</strong>
+                </span>
+                <span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <strong>${due}</strong>
+                </span>
             </div>
             <div class="personal-task-card__actions">
                 <button class="ghost-button" type="button" data-edit-task="${task.id}">Edit</button>
