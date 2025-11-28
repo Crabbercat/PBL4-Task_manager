@@ -751,21 +751,82 @@ button {
     color: #f8fafc;
 }
 
-.personal-task-list {
+
+
+.personal-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+    .personal-board {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .personal-board {
+        grid-template-columns: 1fr;
+    }
+}
+
+.personal-section {
+    background: var(--bg-card);
+    border-radius: 28px;
+    padding: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.personal-section__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.personal-section__header p {
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.75rem;
+    color: rgba(248, 250, 252, 0.6);
+}
+
+.personal-section__count {
+    font-weight: 600;
+    color: rgba(248, 250, 252, 0.8);
+}
+
+.personal-section__list {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    flex: 1;
+}
+
+.personal-section__empty {
+    color: rgba(248, 250, 252, 0.6);
+    font-size: 0.95rem;
 }
 
 .personal-task-card {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 22px;
-    padding: 20px;
+    padding: 18px;
     display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.personal-task-card__main {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
 }
 
 .personal-task-card h3 {
@@ -786,6 +847,55 @@ button {
     gap: 6px;
     color: rgba(248, 250, 252, 0.85);
     min-width: 160px;
+}
+
+.personal-task-card__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.task-complete-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s ease, border 0.2s ease;
+}
+
+.task-complete-toggle input {
+    display: none;
+}
+
+.task-complete-toggle span {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    display: inline-block;
+    position: relative;
+}
+
+.task-complete-toggle input:checked + span {
+    border-color: #22c55e;
+    background: rgba(34, 197, 94, 0.2);
+}
+
+.task-complete-toggle input:checked + span::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 0px;
+    width: 6px;
+    height: 10px;
+    border: solid #22c55e;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 
 .user-chip {

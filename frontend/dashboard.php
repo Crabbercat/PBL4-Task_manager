@@ -96,7 +96,6 @@
                             data-edit-text="Update task details. Status changes happen from the board."
                         >Personal tasks stay private to your account.</p>
                     </div>
-                    <button class="ghost-button" type="button" id="closeTaskModal">Close</button>
                 </header>
                 <form class="modal__form" id="taskForm" data-mode="create">
                     <label>

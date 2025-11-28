@@ -1,27 +1,42 @@
+const PERSONAL_SECTIONS = [
+    { key: "to_do", label: "Backlog", subtitle: "Queued up next" },
+    { key: "in_progress", label: "In progress", subtitle: "Currently moving" },
+    { key: "done", label: "Done", subtitle: "Shipped and validated" }
+];
+
 let personalTaskState = null;
 
 document.addEventListener("DOMContentLoaded", initPersonalTasks);
 
 function initPersonalTasks() {
-    const list = document.getElementById("personalTaskList");
-    if (!list) {
+    const board = document.getElementById("personalTaskBoard");
+    if (!board) {
         return;
     }
 
     personalTaskState = {
-        list,
-        filter: document.getElementById("personalTaskFilter"),
+        board,
         message: document.getElementById("personalTaskMessage"),
-        tasks: []
+        modal: document.getElementById("personalTaskModal"),
+        form: document.getElementById("personalTaskForm"),
+        formMessage: document.getElementById("personalTaskFormMessage"),
+        submitBtn: document.getElementById("personalTaskSubmit"),
+        cancelBtn: document.getElementById("cancelPersonalTaskModal"),
+        tasks: [],
+        editingTaskId: null,
+        originalPayload: null
     };
 
-    personalTaskState.filter?.addEventListener("change", renderPersonalTasks);
+    personalTaskState.board.addEventListener("click", handleBoardClick);
+    personalTaskState.board.addEventListener("change", handleBoardChange);
+    setupPersonalModal();
     fetchPersonalTasks();
 }
 
 async function fetchPersonalTasks() {
+    if (!personalTaskState) return;
     togglePersonalMessage(false, "");
-    personalTaskState.list.innerHTML = '<p class="helper-text">Loading personal tasks...</p>';
+    personalTaskState.board.innerHTML = '<p class="helper-text">Loading personal tasks...</p>';
 
     try {
         const response = await authedFetch("/tasks/personal/");
@@ -35,55 +50,358 @@ async function fetchPersonalTasks() {
         personalTaskState.tasks = Array.isArray(payload) ? payload : [];
         renderPersonalTasks();
     } catch (error) {
-        personalTaskState.list.innerHTML = '';
+        personalTaskState.board.innerHTML = '';
         togglePersonalMessage(true, error.message || "Unable to load personal tasks");
     }
 }
 
 function renderPersonalTasks() {
     if (!personalTaskState) return;
-    const filter = personalTaskState.filter?.value || "all";
-    const tasks = personalTaskState.tasks.filter(task => {
-        if (filter === "all") {
-            return true;
-        }
-        return (task.status || "").toLowerCase() === filter;
-    });
+    const grouped = groupTasksByStatus(personalTaskState.tasks);
 
-    if (!tasks.length) {
-        personalTaskState.list.innerHTML = '';
-        togglePersonalMessage(true, "No personal tasks match this filter.");
+    if (!personalTaskState.tasks.length) {
+        personalTaskState.board.innerHTML = '';
+        togglePersonalMessage(true, "No personal tasks yet. Capture one from the dashboard.");
         return;
     }
 
     togglePersonalMessage(false, "");
-    personalTaskState.list.innerHTML = tasks.map(renderPersonalTaskCard).join("");
+    personalTaskState.board.innerHTML = PERSONAL_SECTIONS
+        .map(section => renderPersonalSection(section, grouped[section.key] || []))
+        .join("");
+}
+
+function groupTasksByStatus(tasks) {
+    return tasks.reduce((acc, task) => {
+        const key = (task.status || "to_do").toLowerCase();
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(task);
+        return acc;
+    }, {});
+}
+
+function renderPersonalSection(section, tasks) {
+    const content = tasks.length
+        ? tasks.map(renderPersonalTaskCard).join("")
+        : `<p class="personal-section__empty">No ${section.label.toLowerCase()} tasks yet.</p>`;
+
+    return `
+        <article class="personal-section">
+            <header class="personal-section__header">
+                <div>
+                    <p>${section.subtitle}</p>
+                    <h3>${section.label}</h3>
+                </div>
+                <span class="personal-section__count">${tasks.length}</span>
+            </header>
+            <div class="personal-section__list">${content}</div>
+        </article>
+    `;
 }
 
 function renderPersonalTaskCard(task) {
     const safeTitle = escapeHtml(task.title);
     const safeDesc = escapeHtml(task.description || "No description");
-    const status = humanize(task.status);
     const priority = (task.priority || '').toUpperCase();
     const due = formatDate(task.due_date);
 
     return `
-        <article class="personal-task-card">
-            <div>
-                <p class="personal-task-card__status">${status}</p>
-                <h3>${safeTitle}</h3>
-                <p class="helper-text">${safeDesc}</p>
+        <article class="personal-task-card" data-task-id="${task.id}">
+            <div class="personal-task-card__main">
+                <label class="task-complete-toggle">
+                    <input type="checkbox" data-complete-toggle="${task.id}" ${task.completed ? "checked" : ""} aria-label="Mark task complete" />
+                    <span></span>
+                </label>
+                <div>
+                    <p class="personal-task-card__status">${humanize(task.status)}</p>
+                    <h3>${safeTitle}</h3>
+                    <p class="helper-text">${safeDesc}</p>
+                </div>
             </div>
             <div class="personal-task-card__meta">
                 <span>Priority: <strong>${priority || 'N/A'}</strong></span>
                 <span>Due: <strong>${due}</strong></span>
             </div>
+            <div class="personal-task-card__actions">
+                <button class="ghost-button" type="button" data-edit-task="${task.id}">Edit</button>
+            </div>
         </article>
     `;
+}
+
+function handleBoardClick(event) {
+    const editBtn = event.target.closest('[data-edit-task]');
+    if (!editBtn) {
+        return;
+    }
+    const taskId = Number(editBtn.getAttribute('data-edit-task'));
+    const task = findPersonalTask(taskId);
+    if (task) {
+        openPersonalTaskModal(task);
+    }
+}
+
+function handleBoardChange(event) {
+    const toggle = event.target.closest('input[data-complete-toggle]');
+    if (!toggle) {
+        return;
+    }
+    const taskId = Number(toggle.getAttribute('data-complete-toggle'));
+    toggleTaskCompletion(taskId, toggle.checked, toggle);
+}
+
+async function toggleTaskCompletion(taskId, completed, checkbox) {
+    checkbox.disabled = true;
+    const payload = { completed };
+    if (completed) {
+        payload.status = "done";
+    }
+
+    try {
+        const response = await authedFetch(`/tasks/${taskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.detail || "Unable to update task");
+        }
+        await fetchPersonalTasks();
+    } catch (error) {
+        alert(error.message || "Unable to update task");
+        checkbox.checked = !completed;
+    } finally {
+        checkbox.disabled = false;
+    }
+}
+
+function setupPersonalModal() {
+    if (!personalTaskState?.modal) return;
+
+    personalTaskState.form?.addEventListener("submit", handlePersonalTaskFormSubmit);
+    personalTaskState.cancelBtn?.addEventListener("click", closePersonalTaskModal);
+    personalTaskState.modal?.addEventListener("click", event => {
+        if (event.target?.dataset?.modalDismiss !== undefined) {
+            closePersonalTaskModal();
+        }
+    });
+}
+
+function openPersonalTaskModal(task) {
+    personalTaskState.editingTaskId = task.id;
+    personalTaskState.modal?.removeAttribute("hidden");
+    fillPersonalTaskForm(task);
+    rememberPersonalTaskBaseline(task);
+}
+
+function closePersonalTaskModal() {
+    personalTaskState.editingTaskId = null;
+    personalTaskState.originalPayload = null;
+    personalTaskState.form?.reset();
+    setPersonalFormMessage("");
+    personalTaskState.modal?.setAttribute("hidden", "true");
+}
+
+function fillPersonalTaskForm(task) {
+    if (!personalTaskState?.form) return;
+    personalTaskState.form.title.value = task.title || "";
+    personalTaskState.form.description.value = task.description || "";
+    personalTaskState.form.priority.value = (task.priority || "medium").toLowerCase();
+    personalTaskState.form.status.value = (task.status || "to_do").toLowerCase();
+    personalTaskState.form.due_date.value = task.due_date ? toLocalDateTime(task.due_date) : "";
+}
+
+function toLocalDateTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+async function handlePersonalTaskFormSubmit(event) {
+    event.preventDefault();
+    if (!personalTaskState?.editingTaskId) {
+        setPersonalFormMessage("Unable to identify the task.", "error");
+        return;
+    }
+
+    const payload = buildPersonalTaskPayload(event.target);
+    if (!payload) {
+        return;
+    }
+
+    if (!hasPersonalTaskChanges(payload)) {
+        setPersonalFormMessage("Make a change before saving.", "error");
+        return;
+    }
+
+    await submitPersonalTaskUpdate(personalTaskState.editingTaskId, payload);
+}
+
+function buildPersonalTaskPayload(form) {
+    const title = form.title.value.trim();
+    if (!title) {
+        setPersonalFormMessage("Title is required", "error");
+        return null;
+    }
+
+    const payload = {
+        title,
+        description: form.description.value.trim() || null,
+        priority: form.priority.value,
+        status: form.status.value
+    };
+
+    const due = form.due_date.value;
+    if (due) {
+        const dueDate = new Date(due);
+        if (Number.isNaN(dueDate.getTime())) {
+            setPersonalFormMessage("Invalid due date", "error");
+            return null;
+        }
+        payload.due_date = dueDate.toISOString();
+    } else {
+        payload.due_date = null;
+    }
+
+    payload.completed = payload.status === "done";
+    return payload;
+}
+
+function rememberPersonalTaskBaseline(task) {
+    if (!personalTaskState) return;
+    if (!task) {
+        personalTaskState.originalPayload = null;
+        return;
+    }
+    personalTaskState.originalPayload = normalizePersonalPayload({
+        title: task.title || "",
+        description: task.description || null,
+        priority: (task.priority || "medium").toLowerCase(),
+        status: (task.status || "to_do").toLowerCase(),
+        due_date: safeIsoString(task.due_date),
+        completed: Boolean(task.completed)
+    });
+}
+
+function normalizePersonalPayload(payload) {
+    return {
+        title: payload.title || "",
+        description: payload.description || null,
+        priority: (payload.priority || "medium").toLowerCase(),
+        status: (payload.status || "to_do").toLowerCase(),
+        due_date: payload.due_date || null,
+        completed: Boolean(payload.completed)
+    };
+}
+
+function hasPersonalTaskChanges(payload) {
+    if (!personalTaskState?.originalPayload) {
+        return true;
+    }
+
+    const current = normalizePersonalPayload(payload);
+    const original = personalTaskState.originalPayload;
+    return Object.keys({ ...original, ...current }).some(key => original[key] !== current[key]);
+}
+
+function safeIsoString(value) {
+    if (!value) {
+        return null;
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date.toISOString();
+}
+
+async function submitPersonalTaskUpdate(taskId, payload) {
+    setPersonalFormMessage("", "");
+    setLoading(personalTaskState.submitBtn, true, "Saving...");
+
+    try {
+        const response = await authedFetch(`/tasks/${taskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.detail || "Unable to update task");
+        }
+
+        setPersonalFormMessage("Task updated!", "success");
+        await fetchPersonalTasks();
+        setTimeout(() => closePersonalTaskModal(), 600);
+    } catch (error) {
+        setPersonalFormMessage(error.message || "Unable to update task", "error");
+    } finally {
+        setLoading(personalTaskState.submitBtn, false, "Save changes");
+    }
+}
+
+function findPersonalTask(taskId) {
+    return personalTaskState?.tasks?.find(task => task.id === taskId);
 }
 
 function togglePersonalMessage(visible, text) {
     if (!personalTaskState?.message) return;
     personalTaskState.message.hidden = !visible;
     personalTaskState.message.textContent = text;
+}
+
+function setPersonalFormMessage(text, state) {
+    const el = personalTaskState?.formMessage;
+    if (!el) return;
+    el.textContent = text;
+    el.className = "helper-text";
+    if (state) {
+        el.classList.add(state);
+    }
+}
+
+function setLoading(button, loading, text) {
+    if (!button) return;
+    if (loading) {
+        button.disabled = true;
+        button.dataset.originalText = button.dataset.originalText || button.textContent;
+        button.textContent = text || button.textContent;
+    } else {
+        button.disabled = false;
+        button.textContent = text || button.dataset.originalText || "Save changes";
+    }
+}
+
+function humanize(value) {
+    if (!value) return '';
+    return value
+        .toLowerCase()
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'No date';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'No date';
+    return date.toLocaleDateString();
+}
+
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }

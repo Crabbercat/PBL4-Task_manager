@@ -200,6 +200,7 @@ def update_task(
 
     update_data = task_update.dict(exclude_unset=True)
     update_data.pop("end_date", None)
+    completed_flag = update_data.pop("completed", None)
     effective_due_date = update_data.get("due_date", db_task.due_date)
 
     if "assignee_id" in update_data:
@@ -223,15 +224,31 @@ def update_task(
                 raise HTTPException(status_code=400, detail="Invalid parent task")
             db_task.parent_task_id = parent_id
 
+    if completed_flag is not None:
+        db_task.completed = completed_flag
+        if completed_flag:
+            update_data.setdefault("status", TaskStatus.DONE)
+        elif db_task.status == TaskStatus.DONE and "status" not in update_data:
+            update_data["status"] = TaskStatus.TO_DO
+
     new_status = update_data.get("status")
     if new_status:
+        if isinstance(new_status, str):
+            try:
+                new_status = TaskStatus(new_status)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid status value")
+
         if new_status == TaskStatus.DONE:
             completed_at = datetime.utcnow()
             if effective_due_date and completed_at > effective_due_date:
                 raise HTTPException(status_code=400, detail="Cannot mark task as done after its due date. Adjust the due date first.")
             db_task.end_date = completed_at
+            db_task.completed = True
         else:
             db_task.end_date = None
+            if completed_flag is None:
+                db_task.completed = False
     elif "due_date" in update_data and db_task.status == TaskStatus.DONE and db_task.end_date:
         if effective_due_date and db_task.end_date > effective_due_date:
             raise HTTPException(status_code=400, detail="Due date must be later than the completion time.")

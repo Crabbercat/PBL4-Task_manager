@@ -27,6 +27,7 @@ function initSettingsPage(token) {
     const teamSaveBtn = document.getElementById("teamSaveBtn");
     let teamRefreshTimer;
     let cachedTeams = [];
+    let profileBaseline = null;
 
     const teamsPromise = loadPublicTeams();
 
@@ -63,9 +64,32 @@ function initSettingsPage(token) {
                 loadUsersForAdmin();
                 loadAdminTeams();
             }
+
+            profileBaseline = getCurrentProfilePayload();
         } catch (error) {
             setSettingsMessage(messageEl, error.message, "error");
         }
+    }
+
+    function getCurrentProfilePayload() {
+        const emailInput = document.getElementById("settingsEmail");
+        const displayNameInput = document.getElementById("settingsDisplayName");
+        return {
+            email: (emailInput?.value || "").trim(),
+            display_name: (displayNameInput?.value || "").trim(),
+            team_id: teamSelect ? Number(teamSelect.value) : undefined
+        };
+    }
+
+    function hasProfileChanges(currentPayload) {
+        if (!profileBaseline) {
+            return true;
+        }
+        return Object.keys({ ...profileBaseline, ...currentPayload }).some(key => {
+            const baselineValue = profileBaseline[key] ?? null;
+            const currentValue = currentPayload[key] ?? null;
+            return baselineValue !== currentValue;
+        });
     }
 
     async function handleProfileSave(event) {
@@ -74,14 +98,15 @@ function initSettingsPage(token) {
             return;
         }
 
+        const payload = getCurrentProfilePayload();
+        if (!hasProfileChanges(payload)) {
+            setSettingsMessage(messageEl, "No changes to update.", "error");
+            autoClearMessage(messageEl);
+            return;
+        }
+
         setSettingsMessage(messageEl, "", "");
         setLoading(saveBtn, true, "Saving...");
-
-        const payload = {
-            email: document.getElementById("settingsEmail").value,
-            display_name: document.getElementById("settingsDisplayName").value.trim(),
-            team_id: teamSelect ? Number(teamSelect.value) : undefined
-        };
 
         try {
             const response = await fetch(`${API_BASE_URL}/me/`, {
@@ -110,6 +135,7 @@ function initSettingsPage(token) {
             if (teamSelect) {
                 teamSelect.value = String(data.team_id ?? 0);
             }
+            profileBaseline = getCurrentProfilePayload();
         } catch (error) {
             setSettingsMessage(messageEl, error.message, "error");
             autoClearMessage(messageEl);
@@ -164,7 +190,7 @@ function initSettingsPage(token) {
                 `;
 
             return `
-                <div class="role-row" data-user-id="${user.id}">
+                <div class="role-row" data-user-id="${user.id}" data-current-role="${user.role}">
                     <div>
                         <strong>${escapeHtml(user.display_name || user.username)}</strong>
                         <p class="helper-text">Username: ${escapeHtml(user.username)}</p>
@@ -194,6 +220,16 @@ function initSettingsPage(token) {
         const userId = row.getAttribute("data-user-id");
         const select = row.querySelector("[data-role-select]");
         if (!userId || !select) {
+            return;
+        }
+
+        const currentRole = row.getAttribute("data-current-role") || "";
+        if (select.value === currentRole) {
+            const rowMessage = row.querySelector("[data-role-message]");
+            if (rowMessage) {
+                setSettingsMessage(rowMessage, "No changes to update.", "error");
+                autoClearMessage(rowMessage);
+            }
             return;
         }
 
@@ -234,6 +270,7 @@ function initSettingsPage(token) {
                 showAdminMessage(successText, "success");
                 autoClearMessage(adminMessage || messageEl, 3000, true);
             }
+            row?.setAttribute("data-current-role", data.role);
         } catch (error) {
             if (rowMessage) {
                 setSettingsMessage(rowMessage, error.message, "error");
@@ -399,7 +436,7 @@ function initSettingsPage(token) {
         }
 
         teamList.innerHTML = teams.map(team => `
-            <div class="team-row" data-team-id="${team.id}">
+            <div class="team-row" data-team-id="${team.id}" data-initial-name="${encodeURIComponent(team.name || "")}" data-initial-description="${encodeURIComponent(team.description || "")}">
                 <div class="team-row__fields">
                     <label class="team-row__label-group">
                         <span class="team-row__label">Team name</span>
@@ -458,6 +495,15 @@ function initSettingsPage(token) {
         if (rowMessage) {
             setSettingsMessage(rowMessage, "", "");
         }
+        const initialName = decodeAttribute(row.getAttribute("data-initial-name"));
+        const initialDescription = decodeAttribute(row.getAttribute("data-initial-description"));
+        if (payload.name === initialName && payload.description === initialDescription) {
+            if (rowMessage) {
+                setSettingsMessage(rowMessage, "No changes to save.", "error");
+                autoClearMessage(rowMessage);
+            }
+            return;
+        }
         setLoading(button, true, "Saving...");
         try {
             const response = await fetch(`${API_BASE_URL}/teams/${teamId}/`, {
@@ -486,6 +532,8 @@ function initSettingsPage(token) {
                 showAdminMessage(`Team ${data.name} updated.`, "success");
                 autoClearMessage(adminMessage || messageEl, 3000, true);
             }
+            row.setAttribute("data-initial-name", encodeURIComponent(data.name || payload.name || ""));
+            row.setAttribute("data-initial-description", encodeURIComponent(data.description || payload.description || ""));
             scheduleTeamRefresh();
         } catch (error) {
             if (rowMessage) {
@@ -545,6 +593,18 @@ function initSettingsPage(token) {
             }
         } finally {
             setLoading(button, false, "Delete");
+        }
+    }
+
+    function decodeAttribute(value) {
+        if (!value) {
+            return "";
+        }
+        try {
+            return decodeURIComponent(value);
+        } catch (error) {
+            console.warn("Unable to decode attribute", error);
+            return value;
         }
     }
 

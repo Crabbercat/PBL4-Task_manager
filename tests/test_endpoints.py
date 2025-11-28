@@ -137,6 +137,30 @@ def test_owner_updates_task_status():
     assert response.json()["status"] == "in_progress"
 
 
+def test_owner_marks_task_completed():
+    response = client.put(
+        f"/api/v1/tasks/{TASK_ID}",
+        json={"completed": True},
+        headers=auth_header(OWNER["token"])
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["completed"] is True
+    assert payload["status"] == "done"
+
+
+def test_owner_marks_task_incomplete():
+    response = client.put(
+        f"/api/v1/tasks/{TASK_ID}",
+        json={"completed": False, "status": "to_do"},
+        headers=auth_header(OWNER["token"])
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["completed"] is False
+    assert payload["status"] == "to_do"
+
+
 def test_member_cannot_delete_task():
     response = client.delete(f"/api/v1/tasks/{TASK_ID}", headers=auth_header(MEMBER["token"]))
     assert response.status_code == 403

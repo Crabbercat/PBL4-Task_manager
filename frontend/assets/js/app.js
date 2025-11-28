@@ -32,7 +32,6 @@ function initDashboard() {
         taskSubmitBtn: document.getElementById("taskSubmitBtn"),
         taskCancelBtn: document.getElementById("taskCancelBtn"),
         openTaskBtn: document.getElementById("openTaskModal"),
-        closeTaskBtn: document.getElementById("closeTaskModal"),
         taskModalTitle: document.getElementById("taskModalTitle"),
         taskModalSubtitle: document.getElementById("taskModalSubtitle"),
         latestTasks: []
@@ -108,7 +107,6 @@ function setupTaskModal() {
         return;
     }
     dashboardRefs.openTaskBtn?.addEventListener("click", () => openTaskModal());
-    dashboardRefs.closeTaskBtn?.addEventListener("click", closeTaskModal);
     dashboardRefs.taskCancelBtn?.addEventListener("click", closeTaskModal);
     dashboardRefs.taskModal.addEventListener("click", event => {
         if (event.target?.dataset?.modalDismiss !== undefined) {
@@ -218,6 +216,10 @@ async function handleTaskFormSubmit(event) {
         const taskId = Number(form.dataset.taskId);
         if (!taskId) {
             setTaskFormMessage("Unable to determine which task to update.", "error");
+            return;
+        }
+        if (!hasTaskFormChanges(form, payload)) {
+            setTaskFormMessage("Make a change before saving.", "error");
             return;
         }
         await submitTaskUpdate(taskId, payload, form);
@@ -352,6 +354,7 @@ function setTaskFormMode(mode = "create", task = null) {
         setDefaultStartDate(task.start_date || new Date());
         setDueDateFields(task.due_date);
         setModalCopy("edit");
+        rememberTaskFormBaseline(task);
         if (dashboardRefs.taskSubmitBtn) {
             dashboardRefs.taskSubmitBtn.textContent = "Save changes";
         }
@@ -360,10 +363,68 @@ function setTaskFormMode(mode = "create", task = null) {
         setDefaultStartDate();
         setDueDateFields(null);
         setModalCopy("create");
+        rememberTaskFormBaseline(null);
         if (dashboardRefs.taskSubmitBtn) {
             dashboardRefs.taskSubmitBtn.textContent = "Create task";
         }
     }
+}
+
+function rememberTaskFormBaseline(task) {
+    const form = dashboardRefs?.taskForm;
+    if (!form) {
+        return;
+    }
+
+    if (!task) {
+        delete form.dataset.originalPayload;
+        return;
+    }
+
+    const baseline = normalizeTaskPayload({
+        title: task.title || "",
+        description: task.description || null,
+        priority: (task.priority || "medium").toLowerCase(),
+        start_date: safeIsoString(task.start_date || task.created_at),
+        due_date: safeIsoString(task.due_date)
+    });
+    form.dataset.originalPayload = JSON.stringify(baseline);
+}
+
+function normalizeTaskPayload(payload) {
+    return {
+        title: payload.title || "",
+        description: payload.description || null,
+        priority: (payload.priority || "medium").toLowerCase(),
+        start_date: payload.start_date || null,
+        due_date: payload.due_date || null
+    };
+}
+
+function hasTaskFormChanges(form, payload) {
+    if (!form?.dataset?.originalPayload) {
+        return true;
+    }
+
+    try {
+        const original = JSON.parse(form.dataset.originalPayload);
+        const current = normalizeTaskPayload(payload);
+        return Object.keys({ ...original, ...current }).some(key => original[key] !== current[key]);
+    } catch (error) {
+        console.error("Unable to compare task payload", error);
+        return true;
+    }
+}
+
+function safeIsoString(value) {
+    if (!value) {
+        return null;
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date.toISOString();
 }
 
 function setModalCopy(mode) {

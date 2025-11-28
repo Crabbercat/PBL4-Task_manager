@@ -265,7 +265,7 @@ async function populateTeamSelect() {
             '<option value="">Select a team</option>',
             ...teams.map(team => `<option value="${team.id}">${team.name}</option>`)
         ].join("");
-        helper && (helper.textContent = "Ask the admin to create your team if it is missing.");
+        helper && (helper.textContent = "You can skip this step and add or change your team later in the settings.");
     } catch (error) {
         helper && (helper.textContent = error.message);
         keepDisabled = true;

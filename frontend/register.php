@@ -26,7 +26,7 @@
                     <select name="team_id" id="teamSelect">
                         <option value="">Select a team</option>
                     </select>
-                    <small class="helper-text" id="teamSelectMessage">Ask the admin to create your team if it is missing.</small>
+                    <small class="helper-text" id="teamSelectMessage">You can skip this step and add or change your team later in the settings.</small>
                 </label>
                 <label>
                     <span>Display name</span>
