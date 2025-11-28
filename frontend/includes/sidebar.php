@@ -47,7 +47,13 @@
         <a class="sidebar__link" href="#">🚀 Launches</a>
     </nav>
 
-    <button class="ghost-button ghost-button--full" type="button" onclick="logout()">
-        Logout
-    </button>
+    <div class="sidebar__footer">
+        <button class="ghost-button ghost-button--full" type="button" id="themeToggleBtn" title="Toggle theme">
+            <span class="theme-icon">☀️</span> Theme
+        </button>
+        <button class="ghost-button ghost-button--full" type="button" onclick="logout()">
+            Logout
+        </button>
+    </div>
 </aside>
+<script src="assets/js/theme.js"></script>
