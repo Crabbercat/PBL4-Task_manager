@@ -1,4 +1,4 @@
-<?php $bodyClass = 'body-dashboard'; include 'includes/header.php'; ?>
+ <?php $bodyClass = 'body-dashboard'; include 'includes/header.php'; ?>
 
 <div class="dashboard-shell">
     <?php include 'includes/sidebar.php'; ?>
@@ -61,22 +61,55 @@
                         <h2>Team management</h2>
                         <p>Create new teams or update existing names and descriptions.</p>
                     </header>
-                    <form id="teamForm" class="settings-form settings-form--single">
-                        <label>
-                            <span>Team name</span>
-                            <input type="text" id="teamName" name="name" placeholder="e.g. Platform" required />
-                        </label>
-                        <label>
-                            <span>Description</span>
-                            <input type="text" id="teamDescription" name="description" placeholder="Optional summary" />
-                        </label>
-                        <button type="submit" class="primary-button" id="teamSaveBtn">Create team</button>
-                        <p class="helper-text" id="teamFormMessage" role="status"></p>
-                    </form>
+                    <div class="settings-card__actions">
+                        <button type="button" class="primary-button" id="openTeamModalBtn">Create new team</button>
+                    </div>
                     <div id="teamList" class="team-list"></div>
                 </article>
             </div>
         </section>
+
+        <div class="modal" id="teamModal" hidden>
+            <div class="modal__overlay" data-modal-dismiss></div>
+            <div class="modal__content">
+                <header class="modal__header">
+                    <div>
+                        <p class="eyebrow">Team Management</p>
+                        <h2>Create New Team</h2>
+                        <p class="helper-text">Organize members into a new team.</p>
+                    </div>
+                </header>
+                <form class="modal__form" id="teamModalForm">
+                    <label>
+                        <span>Team name</span>
+                        <input type="text" id="modalTeamName" name="name" placeholder="e.g. Platform" required />
+                    </label>
+                    <label>
+                        <span>Description</span>
+                        <input type="text" id="modalTeamDescription" name="description" placeholder="Optional summary" />
+                    </label>
+                    
+                    <div class="form-section">
+                        <label><span>Add Members</span></label>
+                        <div class="member-selector">
+                            <input type="text" id="memberSearch" placeholder="Search users..." class="member-search-input">
+                            <div id="memberList" class="member-list">
+                                <!-- Member items will be injected here -->
+                            </div>
+                        </div>
+                        <p class="helper-text">Selected members: <span id="selectedMemberCount">0</span></p>
+                    </div>
+
+                    <p class="helper-text" id="teamModalMessage"></p>
+                    <div class="modal__actions">
+                        <button class="ghost-button" type="button" data-modal-dismiss>Cancel</button>
+                        <button class="primary-button" type="submit" id="teamModalSubmitBtn">Create Team</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+
     </main>
 </div>
 

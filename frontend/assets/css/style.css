@@ -77,6 +77,7 @@ button {
 }
 
 @media (max-width: 960px) {
+
     .auth-layout,
     .auth-layout--reverse {
         flex-direction: column;
@@ -881,12 +882,12 @@ button {
     position: relative;
 }
 
-.task-complete-toggle input:checked + span {
+.task-complete-toggle input:checked+span {
     border-color: #22c55e;
     background: rgba(34, 197, 94, 0.2);
 }
 
-.task-complete-toggle input:checked + span::after {
+.task-complete-toggle input:checked+span::after {
     content: '';
     position: absolute;
     left: 3px;
@@ -1253,4 +1254,111 @@ button {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+}
+
+/* Member Selector in Modal */
+.member-selector {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin-top: 8px;
+}
+
+.member-search-input {
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0;
+    background: transparent;
+    padding: 14px;
+    color: #fff;
+    width: 100%;
+}
+
+.member-search-input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.member-list {
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.member-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.member-item:last-child {
+    border-bottom: none;
+}
+
+.member-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.member-item.selected {
+    background: rgba(124, 93, 255, 0.15);
+}
+
+.member-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.member-info strong {
+    font-size: 0.95rem;
+}
+
+.member-info small {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.member-action {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.member-item.selected .member-action {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-top: 4px;
+    width: fit-content;
+}
+
+.badge--warning {
+    background: rgba(251, 146, 60, 0.15);
+    color: var(--orange);
+    border: 1px solid rgba(251, 146, 60, 0.3);
 }

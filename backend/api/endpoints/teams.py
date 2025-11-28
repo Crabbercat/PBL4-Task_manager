@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ...core.security import get_user_by_token
 from ...db.database import get_db
-from ...db.db_structure import Team
+from ...db.db_structure import Team, User
 from ..models.team import TeamCreate, TeamResponse, TeamSummary, TeamUpdate
 
 router = APIRouter()
@@ -90,3 +90,24 @@ def delete_team(team_id: int, db: Session = Depends(get_db), username: str = Dep
 
     db.delete(db_team)
     db.commit()
+
+
+@router.post("/teams/{team_id}/members/", status_code=status.HTTP_200_OK)
+def add_team_members(team_id: int, user_ids: List[int], db: Session = Depends(get_db), username: str = Depends(get_user_by_token)):
+    if username != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can assign members")
+
+    db_team = db.query(Team).filter(Team.id == team_id).first()
+    if db_team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    # Verify all users exist
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    if len(users) != len(user_ids):
+        raise HTTPException(status_code=400, detail="One or more users not found")
+
+    for user in users:
+        user.team_id = team_id
+    
+    db.commit()
+    return {"message": f"Added {len(users)} members to team {db_team.name}"}

@@ -21,15 +21,204 @@ function initSettingsPage(token) {
     const userRoleList = document.getElementById("userRoleList");
     const adminMessage = document.getElementById("adminMessage");
     const teamSelect = document.getElementById("settingsTeam");
-    const teamForm = document.getElementById("teamForm");
-    const teamFormMessage = document.getElementById("teamFormMessage");
     const teamList = document.getElementById("teamList");
-    const teamSaveBtn = document.getElementById("teamSaveBtn");
+
+    // Modal Elements
+    const teamModal = document.getElementById("teamModal");
+    const openTeamModalBtn = document.getElementById("openTeamModalBtn");
+    const teamModalForm = document.getElementById("teamModalForm");
+    const teamModalSubmitBtn = document.getElementById("teamModalSubmitBtn");
+    const teamModalMessage = document.getElementById("teamModalMessage");
+    const memberSearch = document.getElementById("memberSearch");
+    const memberList = document.getElementById("memberList");
+    const selectedMemberCount = document.getElementById("selectedMemberCount");
+
     let teamRefreshTimer;
     let cachedTeams = [];
     let profileBaseline = null;
+    let allUsers = [];
+    let selectedMemberIds = new Set();
 
     const teamsPromise = loadPublicTeams();
+
+    // --- Modal Event Listeners ---
+    if (openTeamModalBtn) {
+        openTeamModalBtn.addEventListener("click", () => {
+            openModal(teamModal);
+            loadUsersForModal();
+        });
+    }
+
+    if (teamModal) {
+        teamModal.addEventListener("click", (e) => {
+            if (e.target.hasAttribute("data-modal-dismiss") || e.target.classList.contains("modal__overlay")) {
+                closeModal(teamModal);
+            }
+        });
+    }
+
+    if (memberSearch) {
+        memberSearch.addEventListener("input", (e) => {
+            renderMemberList(e.target.value);
+        });
+    }
+
+    function openModal(modal) {
+        modal.hidden = false;
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeModal(modal) {
+        modal.hidden = true;
+        document.body.style.overflow = "";
+        if (teamModalForm) teamModalForm.reset();
+        selectedMemberIds.clear();
+        updateSelectedCount();
+        if (teamModalMessage) teamModalMessage.textContent = "";
+        // Reset member list UI
+        if (memberList) memberList.innerHTML = "";
+    }
+
+    async function loadUsersForModal() {
+        if (!memberList) return;
+        memberList.innerHTML = '<p class="helper-text">Loading users...</p>';
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error("Unable to load users");
+            allUsers = await response.json();
+            renderMemberList();
+        } catch (error) {
+            memberList.innerHTML = `<p class="helper-text error">${error.message}</p>`;
+        }
+    }
+
+    function renderMemberList(filter = "") {
+        if (!memberList) return;
+
+        const term = filter.toLowerCase();
+        const filtered = allUsers.filter(u =>
+            u.username.toLowerCase().includes(term) ||
+            (u.display_name && u.display_name.toLowerCase().includes(term))
+        );
+
+        if (filtered.length === 0) {
+            memberList.innerHTML = '<p class="helper-text">No users found.</p>';
+            return;
+        }
+
+        memberList.innerHTML = filtered.map(user => {
+            const isSelected = selectedMemberIds.has(user.id);
+            const hasTeam = user.team_id !== null;
+            const teamName = user.team ? user.team.name : "";
+
+            return `
+                <div class="member-item ${isSelected ? 'selected' : ''}" data-user-id="${user.id}" data-has-team="${hasTeam}">
+                    <div class="member-info">
+                        <strong>${escapeHtml(user.display_name || user.username)}</strong>
+                        <small>${escapeHtml(user.email)}</small>
+                        ${hasTeam ? `<span class="badge badge--warning">In team: ${escapeHtml(teamName)}</span>` : ''}
+                    </div>
+                    <div class="member-action">
+                        ${isSelected ? '✓' : '+'}
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        // Re-attach listeners
+        memberList.querySelectorAll(".member-item").forEach(item => {
+            item.addEventListener("click", () => toggleMemberSelection(item));
+        });
+    }
+
+    function toggleMemberSelection(item) {
+        const userId = Number(item.getAttribute("data-user-id"));
+        const hasTeam = item.getAttribute("data-has-team") === "true";
+
+        if (selectedMemberIds.has(userId)) {
+            selectedMemberIds.delete(userId);
+        } else {
+            if (hasTeam) {
+                if (!confirm("This user is already in a team. Do you want to move them to the new team?")) {
+                    return;
+                }
+            }
+            selectedMemberIds.add(userId);
+        }
+
+        updateSelectedCount();
+        renderMemberList(memberSearch.value);
+    }
+
+    function updateSelectedCount() {
+        if (selectedMemberCount) {
+            selectedMemberCount.textContent = selectedMemberIds.size;
+        }
+    }
+
+    async function handleTeamCreate(event) {
+        event.preventDefault();
+        if (!teamModalSubmitBtn) return;
+
+        setSettingsMessage(teamModalMessage, "", "");
+        setLoading(teamModalSubmitBtn, true, "Creating...");
+
+        const payload = {
+            name: document.getElementById("modalTeamName").value.trim(),
+            description: document.getElementById("modalTeamDescription").value.trim()
+        };
+
+        try {
+            // 1. Create Team
+            const response = await fetch(`${API_BASE_URL}/teams/`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.status === 401) { logout(); return; }
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.detail || "Unable to create team");
+
+            // 2. Assign Members if any
+            if (selectedMemberIds.size > 0) {
+                const membersResponse = await fetch(`${API_BASE_URL}/teams/${data.id}/members/`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(Array.from(selectedMemberIds))
+                });
+
+                if (!membersResponse.ok) {
+                    const errData = await membersResponse.json();
+                    throw new Error(errData.detail || "Team created but failed to assign members");
+                }
+            }
+
+            showAdminMessage(`Team ${data.name} created with ${selectedMemberIds.size} members.`, "success");
+            autoClearMessage(adminMessage || messageEl, 3000, true);
+
+            closeModal(teamModal);
+            await Promise.all([
+                loadPublicTeams(data.id),
+                loadAdminTeams(),
+                loadUsersForAdmin() // Refresh user list to show new teams
+            ]);
+        } catch (error) {
+            setSettingsMessage(teamModalMessage, error.message, "error");
+        } finally {
+            setLoading(teamModalSubmitBtn, false, "Create Team");
+        }
+    }
+
+    // --- Existing Logic ---
 
     async function fetchProfile() {
         await teamsPromise;
@@ -284,7 +473,7 @@ function initSettingsPage(token) {
     }
 
     profileForm?.addEventListener("submit", handleProfileSave);
-    teamForm?.addEventListener("submit", handleTeamCreate);
+    teamModalForm?.addEventListener("submit", handleTeamCreate);
     fetchProfile();
 
     async function loadPublicTeams(selectedIdOrOptions) {
@@ -335,65 +524,6 @@ function initSettingsPage(token) {
 
         if (selectedId !== undefined) {
             teamSelect.value = String(selectedId ?? 0);
-        }
-    }
-
-    async function handleTeamCreate(event) {
-        event.preventDefault();
-        if (!teamSaveBtn) {
-            return;
-        }
-
-        if (teamFormMessage) {
-            setSettingsMessage(teamFormMessage, "", "");
-        }
-        setLoading(teamSaveBtn, true, "Creating...");
-        const payload = {
-            name: document.getElementById("teamName").value.trim(),
-            description: document.getElementById("teamDescription").value.trim()
-        };
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/teams/`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.status === 401) {
-                logout();
-                return;
-            }
-
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.detail || "Unable to create team");
-            }
-
-            if (teamFormMessage) {
-                setSettingsMessage(teamFormMessage, `Team ${data.name} created.`, "success");
-                autoClearMessage(teamFormMessage, 3000, true);
-            } else {
-                showAdminMessage(`Team ${data.name} created.`, "success");
-                autoClearMessage(adminMessage || messageEl, 3000, true);
-            }
-            teamForm.reset();
-            await Promise.all([
-                loadPublicTeams(data.id),
-                loadAdminTeams()
-            ]);
-        } catch (error) {
-            if (teamFormMessage) {
-                setSettingsMessage(teamFormMessage, error.message, "error");
-                autoClearMessage(teamFormMessage);
-            } else {
-                showAdminMessage(error.message, "error");
-            }
-        } finally {
-            setLoading(teamSaveBtn, false, "Create team");
         }
     }
 
