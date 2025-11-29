@@ -533,6 +533,63 @@ button {
     gap: 28px;
 }
 
+.settings-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 32px;
+    background: var(--bg-card);
+    border-radius: 28px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+}
+
+.settings-hero__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: flex-end;
+    min-width: 240px;
+}
+
+.settings-pill {
+    padding: 14px 18px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: var(--bg-element);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 160px;
+}
+
+.settings-pill small {
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.settings-pill strong {
+    font-size: 1.1rem;
+    color: var(--text-base);
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .settings-card {
     background: var(--bg-card);
     border-radius: 28px;
@@ -565,10 +622,39 @@ button {
     color: var(--text-base);
 }
 
+.settings-card__header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
 .settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.settings-form__group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-form__group-title {
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.settings-form__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 18px;
+}
+
+.settings-form__grid--compact {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .settings-form label {
@@ -607,15 +693,58 @@ button {
     cursor: not-allowed;
 }
 
-.settings-form button {
-    grid-column: 1 / -1;
-    justify-self: flex-start;
+.settings-form__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.settings-form__actions .primary-button {
+    min-width: 200px;
 }
 
 @media (max-width: 640px) {
-    .settings-form button {
+    .settings-form__actions {
         width: 100%;
     }
+
+    .settings-form__actions .primary-button {
+        width: 100%;
+    }
+}
+
+.settings-card--snapshot {
+    position: sticky;
+    top: 24px;
+}
+
+.settings-snapshot {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.settings-snapshot__item {
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: var(--bg-element);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.settings-snapshot__item dt {
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.settings-snapshot__item dd {
+    font-size: 1rem;
+    color: var(--text-base);
 }
 
 .settings-role-list {
@@ -988,6 +1117,35 @@ button {
 .personal-task-card__meta strong {
     color: var(--text-base);
     font-weight: 500;
+}
+
+.personal-task-card__meta span.personal-task-card__priority {
+    font-weight: 600;
+    color: var(--text-base);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.personal-task-card__meta span.personal-task-card__priority svg {
+    color: inherit;
+}
+
+.personal-task-card__meta span.personal-task-card__priority strong {
+    color: inherit;
+}
+
+.personal-task-card__meta span.personal-task-card__priority--low {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.18);
+}
+
+.personal-task-card__meta span.personal-task-card__priority--medium {
+    color: #f97316;
+    background: rgba(249, 115, 22, 0.2);
+}
+
+.personal-task-card__meta span.personal-task-card__priority--high {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.22);
 }
 
 .personal-task-card__actions {

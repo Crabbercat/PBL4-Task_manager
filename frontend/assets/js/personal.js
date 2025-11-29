@@ -1,8 +1,26 @@
 const PERSONAL_SECTIONS = [
-    { key: "to_do", label: "Backlog", subtitle: "Queued up next" },
+    { key: "to_do", label: "To do", subtitle: "Queued up next" },
     { key: "in_progress", label: "In progress", subtitle: "Currently moving" },
     { key: "done", label: "Done", subtitle: "Shipped and validated" }
 ];
+
+const PRIORITY_META = {
+    low: {
+        label: "Low",
+        className: "personal-task-card__priority personal-task-card__priority--low",
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>'
+    },
+    medium: {
+        label: "Medium",
+        className: "personal-task-card__priority personal-task-card__priority--medium",
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>'
+    },
+    high: {
+        label: "High",
+        className: "personal-task-card__priority personal-task-card__priority--high",
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>'
+    }
+};
 
 let personalTaskState = null;
 
@@ -128,7 +146,8 @@ function renderPersonalSection(section, tasks) {
 function renderPersonalTaskCard(task) {
     const safeTitle = escapeHtml(task.title);
     const safeDesc = escapeHtml(task.description || "No description");
-    const priority = (task.priority || '').toUpperCase();
+    const priorityKey = (task.priority || "medium").toLowerCase();
+    const priorityMeta = PRIORITY_META[priorityKey] || PRIORITY_META.medium;
     const due = formatDate(task.due_date);
 
     return `
@@ -145,9 +164,9 @@ function renderPersonalTaskCard(task) {
                 </div>
             </div>
             <div class="personal-task-card__meta">
-                <span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l4 4M12 2 8 6M12 22l4-4M12 22l-4-4"/></svg>
-                    <strong>${priority || 'N/A'}</strong>
+                <span class="${priorityMeta.className}">
+                    ${priorityMeta.icon}
+                    <strong>${priorityMeta.label}</strong>
                 </span>
                 <span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>

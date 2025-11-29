@@ -22,6 +22,16 @@ function initSettingsPage(token) {
     const adminMessage = document.getElementById("adminMessage");
     const teamSelect = document.getElementById("settingsTeam");
     const teamList = document.getElementById("teamList");
+    const displayNameInput = document.getElementById("settingsDisplayName");
+    const emailInput = document.getElementById("settingsEmail");
+
+    const snapshotRefs = {
+        name: document.getElementById("settingsSnapshotName"),
+        email: document.getElementById("settingsSnapshotEmail"),
+        team: document.getElementById("settingsSnapshotTeam"),
+        role: document.getElementById("settingsSnapshotRole")
+    };
+    let snapshotRole = snapshotRefs.role?.textContent || null;
 
     // Modal Elements
     const teamModal = document.getElementById("teamModal");
@@ -220,6 +230,47 @@ function initSettingsPage(token) {
 
     // --- Existing Logic ---
 
+    function getSelectedTeamName() {
+        if (!teamSelect) return "";
+        const option = teamSelect.options[teamSelect.selectedIndex];
+        return option ? option.textContent : "";
+    }
+
+    function humanizeRole(role) {
+        if (!role) return "";
+        const map = { admin: "Admin", manager: "Manager", user: "Member" };
+        return map[role] || role.charAt(0).toUpperCase() + role.slice(1);
+    }
+
+    function updateSnapshot(data = {}) {
+        if (data.role) {
+            snapshotRole = humanizeRole(data.role);
+        }
+
+        if (snapshotRefs.role && snapshotRole) {
+            snapshotRefs.role.textContent = snapshotRole;
+        }
+
+        if (snapshotRefs.name) {
+            const resolvedName = data.display_name ?? displayNameInput?.value ?? snapshotRefs.name.textContent;
+            snapshotRefs.name.textContent = resolvedName || "—";
+        }
+
+        if (snapshotRefs.email) {
+            const resolvedEmail = data.email ?? emailInput?.value ?? snapshotRefs.email.textContent;
+            snapshotRefs.email.textContent = resolvedEmail || "—";
+        }
+
+        if (snapshotRefs.team) {
+            const resolvedTeam = (data.team && data.team.name) || data.team_name || getSelectedTeamName() || "No team";
+            snapshotRefs.team.textContent = resolvedTeam;
+        }
+    }
+
+    displayNameInput?.addEventListener("input", () => updateSnapshot({ display_name: displayNameInput.value }));
+    emailInput?.addEventListener("input", () => updateSnapshot({ email: emailInput.value }));
+    teamSelect?.addEventListener("change", () => updateSnapshot({ team_name: getSelectedTeamName() }));
+
     async function fetchProfile() {
         await teamsPromise;
         try {
@@ -240,8 +291,8 @@ function initSettingsPage(token) {
 
             const data = await response.json();
             document.getElementById("settingsUsername").value = data.username || "";
-            document.getElementById("settingsDisplayName").value = data.display_name || "";
-            document.getElementById("settingsEmail").value = data.email || "";
+            if (displayNameInput) displayNameInput.value = data.display_name || "";
+            if (emailInput) emailInput.value = data.email || "";
             if (teamSelect) {
                 teamSelect.value = String(data.team_id ?? 0);
             }
@@ -255,14 +306,18 @@ function initSettingsPage(token) {
             }
 
             profileBaseline = getCurrentProfilePayload();
+            updateSnapshot({
+                display_name: data.display_name,
+                email: data.email,
+                team: data.team,
+                role: data.role
+            });
         } catch (error) {
             setSettingsMessage(messageEl, error.message, "error");
         }
     }
 
     function getCurrentProfilePayload() {
-        const emailInput = document.getElementById("settingsEmail");
-        const displayNameInput = document.getElementById("settingsDisplayName");
         return {
             email: (emailInput?.value || "").trim(),
             display_name: (displayNameInput?.value || "").trim(),
@@ -319,12 +374,18 @@ function initSettingsPage(token) {
 
             setSettingsMessage(messageEl, "Profile updated.", "success");
             autoClearMessage(messageEl, 3000, true);
-            document.getElementById("settingsDisplayName").value = data.display_name || "";
-            document.getElementById("settingsEmail").value = data.email || "";
+            if (displayNameInput) displayNameInput.value = data.display_name || "";
+            if (emailInput) emailInput.value = data.email || "";
             if (teamSelect) {
                 teamSelect.value = String(data.team_id ?? 0);
             }
             profileBaseline = getCurrentProfilePayload();
+            updateSnapshot({
+                display_name: data.display_name,
+                email: data.email,
+                team: data.team,
+                role: data.role
+            });
         } catch (error) {
             setSettingsMessage(messageEl, error.message, "error");
             autoClearMessage(messageEl);

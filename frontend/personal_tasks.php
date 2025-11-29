@@ -46,7 +46,7 @@
                         <label>
                             <span>Status</span>
                             <select name="status" id="personalTaskStatus">
-                                <option value="to_do">Backlog</option>
+                                <option value="to_do">To do</option>
                                 <option value="in_progress">In progress</option>
                                 <option value="done">Done</option>
                             </select>

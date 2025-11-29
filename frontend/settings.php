@@ -1,43 +1,110 @@
- <?php $bodyClass = 'body-dashboard'; include 'includes/header.php'; ?>
+<?php
+$bodyClass = 'body-dashboard';
+include 'includes/header.php';
+
+$sessionUsername = $_SESSION['username'] ?? 'you';
+$sessionDisplayName = $_SESSION['display_name'] ?? $sessionUsername;
+$sessionEmail = $_SESSION['email'] ?? 'name@company.com';
+$sessionRole = $_SESSION['role_name'] ?? 'Member';
+$sessionTeam = $_SESSION['team_name'] ?? 'No team';
+
+function esc($value) {
+    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
+}
+?>
 
 <div class="dashboard-shell">
     <?php include 'includes/sidebar.php'; ?>
 
     <main class="dashboard-main settings-main">
-        <section class="settings-card">
-            <header>
-                <p class="eyebrow">Profile</p>
-                <h1>Workspace identity</h1>
-                <p>Update how teammates see you across dashboards and assignments.</p>
-            </header>
+        <header class="settings-hero">
+            <div>
+                <p class="eyebrow">Control center</p>
+                <h1>Settings & preferences</h1>
+                <p>Keep your personal details, workspace identity, and teams perfectly in sync.</p>
+            </div>
+            <div class="settings-hero__stats">
+                <div class="settings-pill">
+                    <small>Current role</small>
+                    <strong id="settingsSnapshotRole"><?php echo esc($sessionRole); ?></strong>
+                </div>
+                <div class="settings-pill">
+                    <small>Signed in as</small>
+                    <strong><?php echo esc($sessionDisplayName); ?></strong>
+                </div>
+            </div>
+        </header>
 
-            <form id="profileForm" class="settings-form">
-                <label>
-                    <span>Username</span>
-                    <input type="text" id="settingsUsername" name="username" readonly />
-                </label>
+        <div class="settings-grid">
+            <section class="settings-card settings-card--profile">
+                <header class="settings-card__header">
+                    <p class="eyebrow">Profile</p>
+                    <h2>Workspace identity</h2>
+                    <p>Update how teammates see you across dashboards and assignments.</p>
+                </header>
 
-                <label>
-                    <span>Display name</span>
-                    <input type="text" id="settingsDisplayName" name="display_name" placeholder="How should we show your name?" />
-                </label>
+                <form id="profileForm" class="settings-form">
+                    <div class="settings-form__group">
+                        <p class="settings-form__group-title">Account basics</p>
+                        <div class="settings-form__grid">
+                            <label>
+                                <span>Username</span>
+                                <input type="text" id="settingsUsername" name="username" readonly />
+                            </label>
 
-                <label>
-                    <span>Email</span>
-                    <input type="email" id="settingsEmail" name="email" placeholder="name@company.com" required />
-                </label>
+                            <label>
+                                <span>Display name</span>
+                                <input type="text" id="settingsDisplayName" name="display_name" placeholder="How should we show your name?" />
+                            </label>
 
-                <label>
-                    <span>Team / org</span>
-                    <select id="settingsTeam" name="team_id">
-                        <option value="0">No team</option>
-                    </select>
-                </label>
+                            <label>
+                                <span>Email</span>
+                                <input type="email" id="settingsEmail" name="email" placeholder="name@company.com" required />
+                            </label>
+                        </div>
+                    </div>
 
-                <button type="submit" class="primary-button" id="settingsSaveBtn">Save changes</button>
-                <p class="helper-text" id="settingsMessage" role="status"></p>
-            </form>
-        </section>
+                    <div class="settings-form__group">
+                        <p class="settings-form__group-title">Workspace placement</p>
+                        <div class="settings-form__grid settings-form__grid--compact">
+                            <label>
+                                <span>Team / org</span>
+                                <select id="settingsTeam" name="team_id">
+                                    <option value="0">No team</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-form__actions">
+                        <p class="helper-text" id="settingsMessage" role="status"></p>
+                        <button type="submit" class="primary-button" id="settingsSaveBtn">Save changes</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="settings-card settings-card--snapshot">
+                <header class="settings-card__header">
+                    <p class="eyebrow">Snapshot</p>
+                    <h2>Current profile</h2>
+                    <p>Quick glance at how your workspace card looks to teammates.</p>
+                </header>
+                <dl class="settings-snapshot">
+                    <div class="settings-snapshot__item">
+                        <dt>Display name</dt>
+                        <dd id="settingsSnapshotName"><?php echo esc($sessionDisplayName); ?></dd>
+                    </div>
+                    <div class="settings-snapshot__item">
+                        <dt>Email</dt>
+                        <dd id="settingsSnapshotEmail"><?php echo esc($sessionEmail); ?></dd>
+                    </div>
+                    <div class="settings-snapshot__item">
+                        <dt>Team</dt>
+                        <dd id="settingsSnapshotTeam"><?php echo esc($sessionTeam); ?></dd>
+                    </div>
+                </dl>
+            </section>
+        </div>
 
         <section id="adminPanel" class="settings-card" hidden>
             <header>
