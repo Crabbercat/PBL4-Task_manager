@@ -13,7 +13,7 @@
         </header>
 
         <section class="personal-board" id="personalTaskBoard" aria-live="polite"></section>
-        <p class="helper-text helper-text--center" id="personalTaskMessage" hidden>No personal tasks yet. Capture one from the dashboard.</p>
+        <p class="helper-text helper-text--center" id="personalTaskMessage" hidden>No personal tasks yet. Capture one from the <a class="personal-link" href="http://localhost/task_management/dashboard.php">dashboard</a>.</p>
 
         <div class="modal" id="personalTaskModal" hidden>
             <div class="modal__overlay" data-modal-dismiss></div>

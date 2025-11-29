@@ -4,6 +4,8 @@ const PERSONAL_SECTIONS = [
     { key: "done", label: "Done", subtitle: "Shipped and validated" }
 ];
 
+const PERSONAL_EMPTY_STATE_HTML = "No personal tasks yet. Capture one from the <a class='personal-link' href='http://localhost/task_management/dashboard.php'>dashboard</a>.";
+
 const PRIORITY_META = {
     low: {
         label: "Low",
@@ -103,7 +105,7 @@ function renderPersonalTasks() {
 
     if (!personalTaskState.tasks.length) {
         personalTaskState.board.innerHTML = '';
-        togglePersonalMessage(true, "No personal tasks yet. Capture one from the dashboard.");
+        togglePersonalMessage(true, PERSONAL_EMPTY_STATE_HTML, { allowHtml: true });
         return;
     }
 
@@ -416,10 +418,15 @@ function findPersonalTask(taskId) {
     return personalTaskState?.tasks?.find(task => task.id === taskId);
 }
 
-function togglePersonalMessage(visible, text) {
+function togglePersonalMessage(visible, text, options = {}) {
     if (!personalTaskState?.message) return;
+    const { allowHtml = false } = options;
     personalTaskState.message.hidden = !visible;
-    personalTaskState.message.textContent = text;
+    if (allowHtml) {
+        personalTaskState.message.innerHTML = text;
+    } else {
+        personalTaskState.message.textContent = text;
+    }
 }
 
 function setPersonalFormMessage(text, state) {
