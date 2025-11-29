@@ -39,7 +39,14 @@ INSERT INTO team (id, name, description, created_by)
 VALUES
     (1, 'Core Team', 'Default administrative team', 'admin'),
     (2, 'Product', 'Product management group', 'admin'),
-    (3, 'Engineering', 'Engineering delivery team', 'admin')
+    (3, 'Engineering', 'Engineering delivery team', 'admin'),
+    (4, 'Design', 'UI/UX design team', 'admin'),
+    (5, 'Marketing', 'Marketing and outreach team', 'admin'),
+    (6, 'Sales', 'Sales and customer relations team', 'admin'),
+    (7, 'Support', 'Customer support team', 'admin'),
+    (8, 'HR', 'Human resources team', 'admin'),
+    (9, 'Finance', 'Finance and accounting team', 'admin'),
+    (10, 'Operations', 'Operations and logistics team', 'admin')
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 INSERT INTO user (username, email, display_name, team_id, hashed_password, role)
