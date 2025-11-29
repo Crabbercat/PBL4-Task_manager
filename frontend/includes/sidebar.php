@@ -39,12 +39,30 @@
 
     <nav class="sidebar__nav" aria-label="Primary">
         <p class="sidebar__label">Overview</p>
-        <a class="sidebar__link <?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">📊 Dashboard</a>
-        <a class="sidebar__link <?php echo $currentPage === 'personal_tasks.php' ? 'active' : ''; ?>" href="personal_tasks.php">🗒️ Personal tasks</a>
-        <a class="sidebar__link <?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>" href="settings.php">⚙️ Settings</a>
-        <a class="sidebar__link" href="#">✅ Completed</a>
-        <a class="sidebar__link" href="#">⏳ Pending</a>
-        <a class="sidebar__link" href="#">🚀 Launches</a>
+        <a class="sidebar__link <?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">
+            <img class="sidebar__icon" src="assets/images/icons/dashboard.png" alt="Dashboard" loading="lazy">
+            <span>Dashboard</span>
+        </a>
+        <a class="sidebar__link <?php echo $currentPage === 'personal_tasks.php' ? 'active' : ''; ?>" href="personal_tasks.php">
+            <img class="sidebar__icon" src="assets/images/icons/tasks.png" alt="Personal tasks" loading="lazy">
+            <span>Personal tasks</span>
+        </a>
+        <a class="sidebar__link <?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>" href="settings.php">
+            <img class="sidebar__icon" src="assets/images/icons/setting.png" alt="Settings" loading="lazy">
+            <span>Settings</span>
+        </a>
+        <a class="sidebar__link" href="#">
+            <img class="sidebar__icon" src="assets/images/icons/completed.png" alt="Completed" loading="lazy">
+            <span>Completed</span>
+        </a>
+        <a class="sidebar__link" href="#">
+            <img class="sidebar__icon" src="assets/images/icons/pending.png" alt="Pending" loading="lazy">
+            <span>Pending</span>
+        </a>
+        <a class="sidebar__link" href="#">
+            <img class="sidebar__icon" src="assets/images/icons/launches.png" alt="Launches" loading="lazy">
+            <span>Launches</span>
+        </a>
     </nav>
 
     <div class="sidebar__footer">

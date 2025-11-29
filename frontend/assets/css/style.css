@@ -495,6 +495,20 @@ button {
     color: var(--text-muted);
     transition: background 0.2s ease, color 0.2s ease;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar__icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .sidebar__icon {
+    filter: brightness(0) invert(1);
 }
 
 .sidebar__link.active,
