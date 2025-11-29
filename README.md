@@ -1,283 +1,136 @@
-# Task Manager FastAPI
+# PBL4 Task Manager
 
-Real-time task manager for my FastAPI course
-https://stepik.org/course/179694/
-
-Task Manager FastAPI is a simple task management API built using FastAPI.
-It provides basic CRUD (Create, Read, Update, Delete) operations for tasks and includes real-time updates for task status changes via WebSocket.
-
-This task manager is deliberately made not completely asynchronous in order for students to complete the Final project on their own. It also uses at least 4 deprecated methods for the same purposes. To improve, it is necessary to make asynchronous work with databases and update the endpoints code.
-
-## Table of Contents
-
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-- [Usage](#usage)
-  - [Running the Application](#running-the-application)
-  - [API Endpoints](#api-endpoints)
-- [Testing with SwaggerUI](#testing-the-api-with-swagger-ui)
-- [Testing with pytest](#testing-the-api-with-pytest-framework)
-- [Potential Improvements](#potential-improvements)
-- [Contributing](#contributing)
-- [License](#license)
+A comprehensive Task Management system featuring a robust FastAPI backend and a dynamic PHP/Vanilla JavaScript frontend. This application allows users to manage tasks, collaborate in teams, and track progress with a modern, responsive user interface.
 
 ## Features
 
-- User registration and authentication.
-- CRUD operations for tasks (Create, Read, Update, Delete).
-- Real-time updates for task status changes using WebSocket.
-- OAuth2 authentication for API access.
-- Simple and straightforward project structure.
+-   **User Authentication**: Secure registration and login system using JWT (JSON Web Tokens).
+-   **Task Management**: Full CRUD capabilities for tasks (Create, Read, Update, Delete).
+-   **Team Collaboration**: Create teams, invite members, and manage roles (Admin, Manager, Member).
+-   **Project Organization**: Group tasks into projects for better organization.
+-   **Dashboard**: Interactive dashboard with task statistics and quick actions.
+-   **Responsive Design**: Modern UI with dark/light mode support.
+
+## Tech Stack
+
+-   **Backend**: Python 3.10+, FastAPI, SQLAlchemy, MySQL.
+-   **Frontend**: PHP, JavaScript (Vanilla), HTML, CSS.
+-   **Database**: MySQL.
 
 ## Project Structure
 
-The project follows the following directory structure:
-
 ```
-task_manager_fastapi/
-├── app/
-│   ├── alembic/
-│   ├── api/
-│   │   ├── endpoints/
-│   │   ├── middleware/
-│   │   ├── models/
-│   ├── core/
-│   ├── db/
-├── tests/
-├── .env
-├── .gitignore
-├── alembic.ini
-├── README.md
-├── main.py
-├── requirements.txt
+PBL4-Task_manager/
+├── backend/            # FastAPI application logic
+│   ├── api/            # API endpoints (users, tasks, teams, projects)
+│   ├── core/           # Configuration and security settings
+│   ├── db/             # Database models and connection logic
+│   └── alembic/        # Database migrations (if applicable)
+├── frontend/           # PHP & JS Frontend
+│   ├── assets/         # CSS, JS, Images
+│   ├── includes/       # Reusable PHP components (header, sidebar)
+│   └── *.php           # Main application pages
+├── task_management.sql # Database schema import file
+├── main.py             # Backend entry point
+├── requirements.txt    # Python dependencies
+└── README.md           # Project documentation
 ```
 
-- `app`: Contains the main application code.
-  - `alembic`: Database migration files (if used).
-  - `api`: Contains API endpoints for tasks and users.
-    - `endpoints`: Task and user API endpoints.
-    - `middleware`: Custom middleware (simple logging for example).
-    - `models`: Pydantic models for request and response.
-  - `core`: Core utilities and configurations.
-  - `db`: Database configuration and models.
-- `tests`: Unit tests.
-- `.env`: Store environment variables (e.g., database credentials).
-- `.gitignore`: Lists files and directories to be ignored by version control.
-- `alembic.ini`: Alembic configuration (if used).
-- `README.md`: Documentation about the project.
-- `requirements.txt`: List of project dependencies.
+## Prerequisites
 
-## Getting Started
+Before running the application, ensure you have the following installed:
 
-### Prerequisites
+-   **Python 3.10+**
+-   **MySQL Server** (Recommended: XAMPP or a standalone MySQL installation)
+-   **Web Server for PHP** (Recommended: Apache via XAMPP)
+-   **Git**
 
-Before running the application, make sure you have the following prerequisites installed:
+## Installation
 
-- Python 3.7+ (3.10+ recommended).
-- PostgreSQL.
+### 1. Clone the Repository
 
-### Installation
+```bash
+git clone <repository-url>
+cd PBL4-Task_manager
+```
 
-1. Clone the repository:
+### 2. Database Setup
 
-   ```bash
-   git clone https://github.com/Cheater121/task_manager_fastapi.git
-   cd task_manager_fastapi
-   ```
-2. Create a virtual environment (recommended):
+1.  Start your MySQL server (e.g., via XAMPP Control Panel).
+2.  Import the database schema:
+    -   **Option A (CLI)**:
+        ```bash
+        mysql -u root -p < task_management.sql
+        ```
+    -   **Option B (phpMyAdmin)**:
+        -   Open phpMyAdmin (usually `http://localhost/phpmyadmin`).
+        -   Import `task_management.sql`.
+    -   *Note: The SQL file creates a database named `task_manager`.*
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows, use venv\Scripts\activate.bat
-   ```
-3. Install project dependencies:
+### 3. Backend Setup
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+1.  Navigate to the project root.
+2.  Create a virtual environment:
+    ```bash
+    python -m venv .venv
+    # Windows
+    .venv\Scripts\activate
+    # Linux/macOS
+    source .venv/bin/activate
+    ```
+3.  Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  Configure Environment Variables:
+    -   Create a `.env` file in the root directory.
+    -   Add your database credentials and security keys:
+        ```env
+        DATABASE_URL=mysql+pymysql://root:@localhost:3306/task_manager
+        SECRET_KEY=your_super_secret_key_here
+        SALT=your_salt_here
+        ALGORITHM=HS256
+        ACCESS_TOKEN_EXPIRE_MINUTES=30
+        ```
+    -   *Note: If you have a password for your root user, add it after the colon in `DATABASE_URL` (e.g., `root:password@...`).*
 
-### Configure MySQL (XAMPP)
+### 4. Frontend Setup
 
-1. Start the MySQL service from the XAMPP control panel (port 3306 by default).
-2. Create the database schema by importing `mysql_schema.sql` through phpMyAdmin ("Import" tab) or via the CLI:
-
-   ```bash
-   mysql -u root -p < mysql_schema.sql
-   ```
-
-   The script provisions the `task_manager` database plus all tables and constraints.
-3. Update `.env` with your actual MySQL credentials:
-
-   ```dotenv
-   DATABASE_URL=mysql+pymysql://<user>:<password>@127.0.0.1:3306/task_manager
-   ```
-
-   Leave the password empty (`root:@`) only if you intentionally keep XAMPP's default root account without a password.
-4. Run the FastAPI app with the Python 3.10 interpreter (required for the current dependency set):
-
-   ```bash
-   C:/Users/Lenovo/AppData/Local/Programs/Python/Python310/python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
-   ```
+1.  **Using XAMPP**:
+    -   Copy the `frontend` folder (or the entire project) to your `htdocs` directory (e.g., `C:\xampp\htdocs\task_management`).
+    -   Ensure the path matches your web server configuration.
 
 ## Usage
 
-### Running the Application
+### Running the Backend
 
-To run the FastAPI application locally, use the following command:
-
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Replace `0.0.0.0` and `8000` with your desired host and port.
-
-Or you can just run `main.py`:
+From the project root directory (with your virtual environment activated):
 
 ```bash
-python3 main.py
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### API Endpoints
+The API will be available at `http://localhost:8000`.
 
-The API exposes the following endpoints:
+### Running the Frontend
 
-- `POST /api/v1/users/register/`: Register a new user.
-- `POST /api/v1/users/login/`: Authenticate and receive a JWT token.
-- `GET /api/v1/about_me/`: Retrieve user info (protected endpoint).
-- `GET /api/v1/tasks/`: Retrieve a list of tasks (protected endpoint).
-- `POST /api/v1/tasks/`: Create a new task (protected endpoint).
-- `GET /api/v1/tasks/{task_id}`: Retrieve a specific task (protected endpoint).
-- `PUT /api/v1/tasks/{task_id}`: Update a specific task (protected endpoint).
-- `DELETE /api/v1/tasks/{task_id}`: Delete a specific task (protected endpoint).
+1.  Ensure your web server (Apache) is running.
+2.  Open your browser and navigate to the frontend URL.
+    -   Example: `http://localhost/task_management/frontend/index.php` (adjust based on your folder structure in `htdocs`).
 
-For real-time updates on task status changes, use WebSocket connections to `/ws/tasks/{client_id}`.
+### API Documentation
 
-## Testing the API with Swagger UI
-
-Fast API comes with Swagger UI. This tool is automatically generated based on your API's route definitions and Pydantic models.
-
-### Accessing Swagger UI
-
-Once the API is running, Swagger UI can be accessed on the following URL:
-
-```bash
-http://localhost:8000/docs
-```
-
-You can use swagger UI to:
-
-1. **Browse Endpoints**
-2. **Send Requests**
-3. **View Responses**
-4. **Test Validations**
-
-**To Test with SwaggerUI, you can do the following for each endpoint explained above**
-
-1. Open your web browser and navigate to the /docs path as mentioned above.
-2. Explore the available endpoints and select the one you want to test.
-3. Click on the "Try it out" button to open an interactive form where you can input data.
-4. Fill in the required parameters and request body (if applicable) according to the API documentation given above.
-5. Click the "Execute" button to send the request to the API.
-6. The response will be displayed below, showing the status code and response data.
-7. You can also view example request and response payloads, which can be helpful for understanding the expected data format.
-
-## Testing the API with pytest Framework
-
-A suite of `tests` using the pytest framework was used to help verify the functionality of the Task Manager FastAPI.
-
-### Running the tests
-
-1. Navigate to the `task_manager_fastapi` (root) directory using a terminal:
-
-```bash
-cd <your_path_to_project>/task_manager_fastapi
-```
-
-2. Run the tests by executing the following command (don't forget to activate your virtual environment if used):
-
-```bash
-pytest
-```
-
-This command will automatically discover and run the test cases defined in the `tests` directory.
-
-## Potential Improvements
-
-Enhance your Task Manager FastAPI project with the following potential improvements:
-
-1. **Asynchronous Database Operations and Route Handlers**:
-
-   - Utilize asynchronous database drivers like `asyncpg` for faster database access.
-   - Rewrite route handlers as asynchronous to fully leverage FastAPI's asynchronous capabilities for better performance.
-2. **Task Prioritization and Deadlines**:
-
-   - Allow users to set task priorities (e.g., high, medium, low).
-   - Implement deadlines and reminders for tasks, potentially using BackgroundTasks or Celery.
-   - Create sorting mechanisms for tasks based on priority and deadlines.
-3. **User Profile Management and User-Specific Tasks**:
-
-   - Develop user profile management to enable users to update their information.
-   - Associate tasks with specific users, allowing each user to see only their tasks.
-4. **Task Assignment to Users or Groups**:
-
-   - Enable task assignments to individual users or groups.
-   - Implement notifications for task assignments.
-   - Allow users to delegate tasks to others.
-5. **User Roles and Role-Based Access Control (RBAC)**:
-
-   - Introduce user roles (e.g., admin, manager, user) to control access.
-   - Implement Role-Based Access Control (RBAC) for fine-grained access control.
-6. **Test Expansion and Integration Tests**:
-
-   - Expand unit tests to cover edge cases and scenarios.
-   - Develop integration tests to validate interactions between components.
-   - Create a test database for isolated and secure testing.
-7. **Advanced Logging and Error Handling**:
-
-   - Enhance logging by categorizing log messages (info, warnings, errors).
-   - Implement structured logging for better analysis.
-   - Improve error handling for user-friendly error messages.
-8. **Database Layer Separation or Design Patterns**:
-
-   - Consider separating database operations into a dedicated layer or applying a design pattern like the repository pattern.
-   - Modularize components into separate services for a microservices approach.
-9. **Security Enhancement with Cookies and Refresh Tokens**:
-
-   - Implement secure cookies for browser-based sessions.
-   - Generate and validate refresh tokens for enhanced security.
-   - Implement token expiration and renewal mechanisms.
-10. **Scalability and Performance Optimization**:
-
-    - Optimize database queries and indexes for improved performance.
-    - Introduce caching mechanisms (e.g., Redis) for frequently accessed data.
-    - Explore containerization and orchestration for scalable deployment.
-11. **User-Friendly Documentation**:
-
-    - Improve API documentation using tools like Swagger UI or ReDoc.
-    - Provide detailed explanations and examples for API endpoints.
-12. **Internationalization and Localization**:
-
-    - Enable multi-language support for the application.
-    - Allow users to select their preferred language.
-13. **User Feedback and Notifications**:
-
-    - Implement a feedback system for users to report issues and suggestions.
-    - Add notification features such as email or in-app alerts for important updates.
-
-These potential improvements can enhance the functionality, scalability, and user experience of your Task Manager FastAPI project. Prioritize them based on project goals and user needs.
+Interactive API documentation (Swagger UI) is available at:
+`http://localhost:8000/docs`
 
 ## Contributing
 
-Contributions are welcome! If you'd like to contribute to this project, please follow these steps:
-
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix.
-3. Make your changes and test thoroughly.
-4. Create a pull request with a clear description of your changes.
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/NewFeature`).
+3.  Commit your changes (`git commit -m 'Add some feature'`).
+4.  Push to the branch (`git push origin feature/NewFeature`).
+5.  Open a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
