@@ -119,3 +119,49 @@ CREATE TABLE IF NOT EXISTS project_member (
     CONSTRAINT fk_project_member_user FOREIGN KEY (user_id)
         REFERENCES user (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Add default users
+INSERT INTO user (username, email, display_name, team_id, hashed_password, role)
+VALUES
+    ('member', 'member@example.com', 'Member User', 2, '$2b$12$SAGv.kKn0lYpVvsa0HBe2edjj5djO5cRkFM3sOzBaZakNAZpIkOp.', 'user'),
+    ('manager', 'manager@example.com', 'Manager User', 1, '$2b$12$uUvtZDaHRm2V1cBwS4sO5OoHc1ZULRFu1JNNa16b2KXKBgOkVK9S6', 'manager')
+ON DUPLICATE KEY UPDATE username = username;
+
+-- Add sample tasks for member
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date)
+SELECT 'Complete Onboarding', 'Finish the onboarding checklist', 'to_do', 'high', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY)
+FROM user WHERE username = 'member';
+
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date)
+SELECT 'Update Profile', 'Add avatar and bio', 'in_progress', 'medium', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 5 DAY)
+FROM user WHERE username = 'member';
+
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date, completed, end_date)
+SELECT 'Read Documentation', 'Read the project docs', 'done', 'low', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), 1, NOW()
+FROM user WHERE username = 'member';
+
+-- Add sample tasks for manager
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date)
+SELECT 'Review Q3 Goals', 'Analyze the performance metrics', 'to_do', 'high', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY)
+FROM user WHERE username = 'manager';
+
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date)
+SELECT 'Team Meeting', 'Weekly sync with the team', 'in_progress', 'medium', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY)
+FROM user WHERE username = 'manager';
+
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date, completed, end_date)
+SELECT 'Approve Budget', 'Sign off on the new budget', 'done', 'low', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), 1, NOW()
+FROM user WHERE username = 'manager';
+
+-- Add sample tasks for admin (so they see something on login)
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date)
+SELECT 'System Maintenance', 'Check server logs and update packages', 'to_do', 'high', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY)
+FROM user WHERE username = 'admin';
+
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date)
+SELECT 'User Review', 'Review new user registrations', 'in_progress', 'medium', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY)
+FROM user WHERE username = 'admin';
+
+INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date, completed, end_date)
+SELECT 'Backup Database', 'Perform weekly database backup', 'done', 'low', id, id, 1, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), 1, NOW()
+FROM user WHERE username = 'admin';
