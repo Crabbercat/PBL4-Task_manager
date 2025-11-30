@@ -61,6 +61,7 @@ async function handleLogin(event) {
 
         messageEl.textContent = "Login successful! Redirecting...";
         messageEl.classList.add("success");
+        window.showToast?.("Login successful", { type: "success" });
 
         setTimeout(() => {
             window.location.href = "dashboard.php";
@@ -69,6 +70,7 @@ async function handleLogin(event) {
     } catch (error) {
         messageEl.textContent = error.message;
         messageEl.classList.add("error");
+        window.showToast?.("Login failed", { type: "error", description: error.message });
     } finally {
         setLoading(btn, false, "Sign in");
     }
@@ -120,6 +122,7 @@ async function handleRegister(event) {
 
         messageEl.textContent = "Account created! Redirecting to login...";
         messageEl.classList.add("success");
+        window.showToast?.("Account created", { type: "success" });
 
         setTimeout(() => {
             window.location.href = "login.php";
@@ -128,6 +131,7 @@ async function handleRegister(event) {
     } catch (error) {
         messageEl.textContent = error.message;
         messageEl.classList.add("error");
+        window.showToast?.("Registration failed", { type: "error", description: error.message });
     } finally {
         setLoading(btn, false, "Create account");
     }

@@ -618,7 +618,10 @@ async function updateTaskStatus(taskId, newStatus, select) {
         const now = new Date();
         const dueDate = new Date(task.due_date);
         if (now > dueDate) {
-            alert("This task is past its due date. Adjust the due date before marking it done.");
+            window.showToast?.("Task cannot be completed", {
+                type: "error",
+                description: "Adjust the due date before marking it done."
+            });
             select.value = task.status;
             return;
         }
@@ -642,7 +645,7 @@ async function updateTaskStatus(taskId, newStatus, select) {
         task.status = newStatus;
         await fetchTasks();
     } catch (error) {
-        alert(error.message);
+        window.showToast?.("Unable to update status", { type: "error", description: error.message });
         select.value = task.status;
     } finally {
         select.disabled = false;
@@ -656,6 +659,11 @@ function setTaskFormMessage(text, state) {
     el.className = "helper-text";
     if (state) {
         el.classList.add(state);
+        const toastType = state === "success" ? "success" : state === "error" ? "error" : null;
+        if (toastType) {
+            const resolved = text || (toastType === "success" ? "Action completed" : "Something went wrong");
+            window.showToast?.(resolved, { type: toastType });
+        }
     }
 }
 

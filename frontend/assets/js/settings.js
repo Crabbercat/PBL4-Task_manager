@@ -143,7 +143,7 @@ function initSettingsPage(token) {
         });
     }
 
-    function toggleMemberSelection(item) {
+    async function toggleMemberSelection(item) {
         const userId = Number(item.getAttribute("data-user-id"));
         const hasTeam = item.getAttribute("data-has-team") === "true";
 
@@ -151,7 +151,13 @@ function initSettingsPage(token) {
             selectedMemberIds.delete(userId);
         } else {
             if (hasTeam) {
-                if (!confirm("This user is already in a team. Do you want to move them to the new team?")) {
+                const confirmed = await window.showConfirmDialog({
+                    title: "Move member",
+                    message: "This user already belongs to a team. Move them to the new team?",
+                    confirmText: "Move",
+                    cancelText: "Keep current team"
+                });
+                if (!confirmed) {
                     return;
                 }
             }
@@ -739,7 +745,14 @@ function initSettingsPage(token) {
     }
 
     async function handleTeamDelete(teamId, button) {
-        if (!confirm("Delete this team? Members assigned to it will be cleared.")) {
+        const confirmed = await window.showConfirmDialog({
+            title: "Delete team",
+            message: "Delete this team? Members assigned to it will be cleared.",
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            tone: "danger"
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -859,6 +872,10 @@ function setSettingsMessage(element, text, state) {
     element.className = "helper-text";
     if (state) {
         element.classList.add(state);
+        if (state === "success" || state === "error") {
+            const resolved = text || (state === "success" ? "Action completed" : "Something went wrong");
+            window.showToast?.(resolved, { type: state });
+        }
     }
 }
 

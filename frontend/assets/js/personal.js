@@ -204,7 +204,13 @@ function handleBoardClick(event) {
 }
 
 async function deletePersonalTask(taskId, button) {
-    const confirmed = window.confirm("Delete this task? This action cannot be undone.");
+    const confirmed = await window.showConfirmDialog({
+        title: "Delete personal task",
+        message: "Delete this task? This action cannot be undone.",
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        tone: "danger"
+    });
     if (!confirmed) {
         return;
     }
@@ -256,7 +262,7 @@ async function toggleTaskCompletion(taskId, completed, checkbox) {
         }
         await fetchPersonalTasks();
     } catch (error) {
-        alert(error.message || "Unable to update task");
+        window.showToast?.("Unable to update task", { type: "error", description: error.message });
         checkbox.checked = !completed;
     } finally {
         checkbox.disabled = false;
@@ -469,6 +475,10 @@ function setPersonalFormMessage(text, state) {
     el.className = "helper-text";
     if (state) {
         el.classList.add(state);
+        if (state === "success" || state === "error") {
+            const resolved = text || (state === "success" ? "Action completed" : "Something went wrong");
+            window.showToast?.(resolved, { type: state });
+        }
     }
 }
 

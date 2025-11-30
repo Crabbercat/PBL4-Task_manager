@@ -491,7 +491,13 @@ async function deleteProjectTask(taskId, trigger) {
         notify?.("Only project managers or admins can delete tasks", { type: "error" });
         return;
     }
-    const confirmed = window.confirm("Delete this task? This cannot be undone.");
+    const confirmed = await window.showConfirmDialog({
+        title: "Delete project task",
+        message: "Delete this task? This cannot be undone.",
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        tone: "danger"
+    });
     if (!confirmed) {
         return;
     }
@@ -772,7 +778,7 @@ async function inviteUserToProject(userId, button) {
     }
 }
 
-function handleMemberTableClick(event) {
+async function handleMemberTableClick(event) {
     const button = event.target.closest("[data-member-remove]");
     if (!button) {
         return;
@@ -782,7 +788,13 @@ function handleMemberTableClick(event) {
     if (!Number.isFinite(userId)) {
         return;
     }
-    const confirmed = window.confirm(`Remove ${memberName} from this project?`);
+    const confirmed = await window.showConfirmDialog({
+        title: "Remove member",
+        message: `Remove ${memberName} from this project?`,
+        confirmText: "Remove",
+        cancelText: "Cancel",
+        tone: "danger"
+    });
     if (!confirmed) {
         return;
     }
@@ -952,7 +964,13 @@ async function handleDeleteProject() {
     if (!button) {
         return;
     }
-    const confirmed = window.confirm("Delete this project? All related tasks will be removed permanently.");
+    const confirmed = await window.showConfirmDialog({
+        title: "Delete project",
+        message: "Delete this project? All related tasks will be removed permanently.",
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        tone: "danger"
+    });
     if (!confirmed) {
         return;
     }
@@ -1132,6 +1150,10 @@ function toggleFormMessage(element, message, hide = false, type = "") {
     element.classList.remove("error", "success");
     if (type) {
         element.classList.add(type);
+        if (type === "success" || type === "error") {
+            const resolved = message || (type === "success" ? "Action completed" : "Something went wrong");
+            window.showToast?.(resolved, { type });
+        }
     }
 }
 
