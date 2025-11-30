@@ -1,0 +1,91 @@
+@startuml
+left to right direction
+
+class Team {
+    id : INTEGER
+    name : VARCHAR
+    description : VARCHAR
+    created_by : VARCHAR
+    created_at : DATETIME
+    updated_at : DATETIME
+}
+
+class User {
+    id : INTEGER
+    username : VARCHAR
+    email : VARCHAR
+    display_name : VARCHAR
+    team_id : INTEGER
+    hashed_password : VARCHAR
+    role : VARCHAR
+    is_active : BOOLEAN
+    last_login : DATETIME
+    created_at : DATETIME
+    updated_at : DATETIME
+}
+
+class Project {
+    id : INTEGER
+    name : VARCHAR
+    description : VARCHAR
+    color : VARCHAR
+    owner_id : INTEGER
+    archived : BOOLEAN
+    created_at : DATETIME
+    updated_at : DATETIME
+}
+
+class ProjectMember {
+    project_id : INTEGER
+    user_id : INTEGER
+    role : VARCHAR
+    joined_at : DATETIME
+}
+
+class Task {
+    id : INTEGER
+    title : VARCHAR
+    description : TEXT
+    completed : BOOLEAN
+    status : VARCHAR
+    priority : VARCHAR
+    start_date : DATETIME
+    end_date : DATETIME
+    due_date : DATETIME
+    tags : VARCHAR
+    creator_id : INTEGER
+    assignee_id : INTEGER
+    project_id : INTEGER
+    is_personal : BOOLEAN
+    parent_task_id : INTEGER
+    created_at : DATETIME
+    updated_at : DATETIME
+}
+
+class AuthService {
+    +login(username, password)
+    +register(user_data)
+    +verify_password(password, hash)
+}
+
+class ProjectService {
+    +create_project(user, data)
+    +add_member(project_id, user_id, role)
+    +archive_project(project_id)
+}
+
+class TaskService {
+    +create_task(user, data)
+    +assign_task(task_id, assignee_id)
+    +update_task_status(task_id, status)
+    +delete_task(task_id)
+}
+
+Team::id *-- User::team_id
+User::id *-- ProjectMember::user_id
+Project::id *-- ProjectMember::project_id
+Project::id *-- Task::project_id
+User::id *-- Task::assignee_id
+Task::id *-- Task::parent_task_id
+
+@enduml
