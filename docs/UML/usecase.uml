@@ -1,0 +1,60 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+actor "Admin" as Admin
+actor "Manager" as Manager
+actor "Member" as Member
+
+rectangle "Project Management System" {
+
+    -- Admin Use Cases --
+    usecase "Manage Accounts" as UC_Admin_Accounts
+    usecase "Manage Roles" as UC_Admin_Roles
+    usecase "Manage Teams/Groups" as UC_Admin_Teams
+    usecase "View System Reports" as UC_Admin_Reports
+
+    -- Manager Use Cases --
+    usecase "Create Project" as UC_Mgr_CreateProject
+    usecase "Add Member to Project" as UC_Mgr_AddMember
+    usecase "Set Member Permissions" as UC_Mgr_SetPerm
+    usecase "Create Project Task" as UC_Mgr_CreateTask
+    usecase "Assign Task" as UC_Mgr_AssignTask
+    usecase "View Project Timeline" as UC_Mgr_ViewTimeline
+    usecase "Update Project Info" as UC_Mgr_UpdateProject
+
+    -- Member Use Cases --
+    usecase "View Project" as UC_Mem_ViewProject
+    usecase "View Assigned Tasks" as UC_Mem_ViewAssigned
+    usecase "Self-Create Personal Task" as UC_Mem_PersonalTask
+    usecase "Update Task Status" as UC_Mem_UpdateStatus
+    usecase "Claim Task" as UC_Mem_ClaimTask
+    usecase "Comment / Update Task Info" as UC_Mem_CommentUpdate
+
+}
+
+' --- RELATIONS ---
+' Admin relations
+Admin --> UC_Admin_Accounts
+Admin --> UC_Admin_Roles
+Admin --> UC_Admin_Teams
+Admin --> UC_Admin_Reports
+
+' Manager relations
+Manager --> UC_Mgr_CreateProject
+Manager --> UC_Mgr_AddMember
+Manager --> UC_Mgr_SetPerm
+Manager --> UC_Mgr_CreateTask
+Manager --> UC_Mgr_AssignTask
+Manager --> UC_Mgr_ViewTimeline
+Manager --> UC_Mgr_UpdateProject
+
+' Member relations
+Member --> UC_Mem_ViewProject
+Member --> UC_Mem_ViewAssigned
+Member --> UC_Mem_PersonalTask
+Member --> UC_Mem_UpdateStatus
+Member --> UC_Mem_ClaimTask
+Member --> UC_Mem_CommentUpdate
+
+@enduml

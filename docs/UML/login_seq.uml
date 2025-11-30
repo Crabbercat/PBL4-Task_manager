@@ -1,0 +1,42 @@
+@startuml
+actor User as U
+participant Frontend as FE
+participant FastAPI 
+database MySQL
+
+
+
+activate U
+U -> FE: Nhập username/password
+
+activate FE
+FE -> FastAPI: Gửi POST /login
+
+activate FastAPI
+FastAPI -> MySQL: Query thông tin user
+
+activate MySQL
+MySQL --> FastAPI: Trả thông tin user
+deactivate MySQL
+alt User tồn tại
+FastAPI -> FastAPI: So sánh password nhập với hash (bcrypt/check)
+    alt Đúng mật khẩu
+        FastAPI -> FastAPI: Tạo JWT token
+        FastAPI --> FE: Trả token + message "Login thành công"
+        FE --> FE: Lưu lại token
+        
+        FE --> FE: Mở trang dashboard
+        activate FE
+        deactivate FE
+    else Sai mật khẩu
+        FastAPI --> FE: Trả lỗi "Username hoặc password sai"
+        FE --> FE: Hiển thị thông báo lỗi
+    end
+else User không tồn tại
+    FastAPI --> FE: Trả lỗi "Username hoặc password sai"
+    deactivate FastAPI
+    FE --> FE: Hiển thị thông báo lỗi
+end
+deactivate FE
+deactivate U
+@enduml

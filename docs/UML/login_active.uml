@@ -1,0 +1,29 @@
+@startuml
+|Người dùng (Guest)|
+start
+
+:Chọn chức năng Đăng nhập;
+|Hệ thống|
+:Mở giao diện Login;
+
+|Người dùng (Guest)|
+:Nhập username và password;
+
+|Hệ thống|
+:Nhận thông tin và kiểm tra đăng nhập;
+
+if (Tài khoản tồn tại?) then (Có)
+    if (Mật khẩu đúng?) then (Đúng)
+        :Tạo JWT token;
+        :Gửi token về frontend;
+        :Hiển thị đăng nhập thành công;
+    else (Sai)
+        :Trả lỗi "Sai mật khẩu";
+        :Thông báo lỗi;
+    endif
+else (Không)
+    :Trả lỗi "Tài khoản không tồn tại";
+    :Thông báo lỗi;
+endif
+stop
+@enduml
