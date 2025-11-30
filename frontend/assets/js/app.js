@@ -1,5 +1,7 @@
 const DASHBOARD_DATE_LOOKAHEAD_DAYS = 7;
 let dashboardRefs = null;
+let currentDashboardUser = null;
+let userProjectsCache = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     if (document.body.classList.contains("body-dashboard")) {
@@ -23,7 +25,8 @@ function initDashboard() {
             total: document.getElementById("totalTasksStat"),
             progress: document.getElementById("inProgressTasksStat"),
             completed: document.getElementById("completedTasksStat"),
-            upcoming: document.getElementById("upcomingTasksStat")
+            upcoming: document.getElementById("upcomingTasksStat"),
+            projects: document.getElementById("totalProjectsStat")
         },
         boardMessage: document.getElementById("emptyBoardMessage"),
         taskModal: document.getElementById("taskModal"),
@@ -32,19 +35,39 @@ function initDashboard() {
         taskSubmitBtn: document.getElementById("taskSubmitBtn"),
         taskCancelBtn: document.getElementById("taskCancelBtn"),
         openTaskBtn: document.getElementById("openTaskModal"),
+        newProjectBtn: document.getElementById("goToProjectsBtn"),
         taskModalTitle: document.getElementById("taskModalTitle"),
         taskModalSubtitle: document.getElementById("taskModalSubtitle"),
         latestTasks: []
     };
 
-    fetchTasks();
+    fetchCurrentUser()
+        .then(user => {
+            currentDashboardUser = user;
+            return Promise.all([fetchTasks(), fetchUserProjects()]);
+        })
+        .catch(error => {
+            console.error(error);
+            setBoardMessage("Unable to load your tasks. Please refresh.");
+        });
 
     setupTaskModal();
+    setupBoardVisibilityToggle();
+    setupDashboardShortcuts();
+    ensureDashboardButtonFallbacks();
 }
 
 async function fetchTasks() {
     const token = localStorage.getItem("tm_access_token");
     if (!token || !dashboardRefs) return;
+    if (!currentDashboardUser) {
+        try {
+            currentDashboardUser = await fetchCurrentUser(true);
+        } catch (error) {
+            setBoardMessage("Unable to load your profile");
+            return;
+        }
+    }
 
     try {
         const response = await authedFetch("/tasks/");
@@ -56,14 +79,40 @@ async function fetchTasks() {
     }
 }
 
+async function fetchUserProjects() {
+    try {
+        const response = await authedFetch("/projects/");
+        const projects = await response.json();
+        if (!Array.isArray(projects)) {
+            throw new Error("Unexpected response");
+        }
+        userProjectsCache = projects.filter(project => isMemberOfProject(project, currentDashboardUser?.id));
+        updateProjectStat();
+    } catch (error) {
+        console.error("Unable to load project list", error);
+    }
+}
+
+function isMemberOfProject(project, userId) {
+    if (!project || !userId) {
+        return false;
+    }
+    if (project.owner?.id === userId || project.owner_id === userId) {
+        return true;
+    }
+    const memberships = project.memberships || [];
+    return memberships.some(member => member.user?.id === userId || member.user_id === userId);
+}
+
 function renderDashboard(tasks) {
     if (!dashboardRefs) return;
 
     const taskList = Array.isArray(tasks) ? tasks : [];
-    dashboardRefs.latestTasks = taskList;
+    const filteredTasks = filterTasksForCurrentUser(taskList);
+    dashboardRefs.latestTasks = filteredTasks;
     const grouped = { to_do: [], in_progress: [], done: [] };
 
-    taskList.forEach(task => {
+    filteredTasks.forEach(task => {
         const key = (task.status || '').toLowerCase();
         if (grouped[key]) {
             grouped[key].push(task);
@@ -84,35 +133,135 @@ function renderDashboard(tasks) {
         }
     });
 
-    const upcoming = taskList.filter(task => isUpcoming(task.due_date)).length;
+    const upcoming = filteredTasks.filter(task => isUpcoming(task.due_date)).length;
 
-    dashboardRefs.stats.total.textContent = taskList.length;
+    dashboardRefs.stats.total.textContent = filteredTasks.length;
     dashboardRefs.stats.progress.textContent = grouped.in_progress.length;
     dashboardRefs.stats.completed.textContent = grouped.done.length;
     dashboardRefs.stats.upcoming.textContent = upcoming;
+    updateProjectStat();
+    updateEmptyStateVisibility(filteredTasks.length);
+}
 
-    if (dashboardRefs.boardMessage) {
-        dashboardRefs.boardMessage.hidden = tasks.length !== 0;
+function updateEmptyStateVisibility(taskCount) {
+    if (!dashboardRefs?.boardMessage) {
+        return;
     }
+    const hasTasks = taskCount > 0;
+    dashboardRefs.boardMessage.dataset.hasTasks = hasTasks ? "true" : "false";
+    dashboardRefs.boardMessage.hidden = hasTasks;
+}
+
+function filterTasksForCurrentUser(taskList) {
+    if (!currentDashboardUser) {
+        return taskList;
+    }
+    const userId = currentDashboardUser.id;
+    return taskList.filter(task => {
+        const creatorId = task.creator?.id ?? task.creator_id;
+        if (task.is_personal) {
+            return creatorId === userId;
+        }
+        const assigneeId = task.assignee?.id ?? task.assignee_id;
+        return assigneeId === userId;
+    });
+}
+
+function updateProjectStat() {
+    if (!dashboardRefs?.stats?.projects) {
+        return;
+    }
+    if (!userProjectsCache) {
+        dashboardRefs.stats.projects.textContent = "0";
+        return;
+    }
+    dashboardRefs.stats.projects.textContent = userProjectsCache.length;
+}
+
+function setupBoardVisibilityToggle() {
+    const btn = document.getElementById("toggleTaskVisibilityBtn");
+    const shell = document.querySelector(".dashboard-shell");
+    if (!btn || !shell) {
+        return;
+    }
+
+    applyVisibilityButtonState(btn, shell.classList.contains("board-hidden"));
+    if (btn.dataset.dashboardBound === "true") {
+        return;
+    }
+
+    btn.addEventListener("click", () => {
+        toggleDashboardBoardVisibility(shell, btn);
+    });
+    btn.dataset.dashboardBound = "true";
+}
+
+function setupDashboardShortcuts() {
+    if (!dashboardRefs) {
+        return;
+    }
+    if (dashboardRefs.newProjectBtn && dashboardRefs.newProjectBtn.dataset.dashboardBound !== "true") {
+        dashboardRefs.newProjectBtn.addEventListener("click", handleNewProjectShortcut);
+        dashboardRefs.newProjectBtn.dataset.dashboardBound = "true";
+    }
+    if (dashboardRefs.openTaskBtn && dashboardRefs.openTaskBtn.dataset.dashboardBound !== "true") {
+        dashboardRefs.openTaskBtn.addEventListener("click", handleAddTaskShortcut);
+        dashboardRefs.openTaskBtn.dataset.dashboardBound = "true";
+    }
+}
+
+function handleNewProjectShortcut() {
+    window.location.href = "projects.php";
+}
+
+function handleAddTaskShortcut(event) {
+    event?.preventDefault?.();
+    openTaskModal();
+}
+
+function applyVisibilityButtonState(button, isHidden) {
+    if (!button) {
+        return;
+    }
+    button.dataset.state = isHidden ? "hidden" : "visible";
+    button.textContent = isHidden ? "Show tasks" : "Hide tasks";
+}
+
+function toggleDashboardBoardVisibility(shellRef, buttonRef) {
+    const shell = shellRef || document.querySelector(".dashboard-shell");
+    const button = buttonRef || document.getElementById("toggleTaskVisibilityBtn");
+    if (!shell || !button) {
+        return false;
+    }
+    const isHidden = shell.classList.toggle("board-hidden");
+    applyVisibilityButtonState(button, isHidden);
+    updateEmptyStateVisibility(dashboardRefs?.latestTasks?.length || 0);
+    return true;
 }
 
 function setBoardMessage(message) {
     if (!dashboardRefs?.boardMessage) return;
     dashboardRefs.boardMessage.hidden = false;
     dashboardRefs.boardMessage.textContent = message;
+    dashboardRefs.boardMessage.dataset.hasTasks = "false";
 }
 
 function setupTaskModal() {
     if (!dashboardRefs?.taskModal) {
         return;
     }
-    dashboardRefs.openTaskBtn?.addEventListener("click", () => openTaskModal());
-    dashboardRefs.taskCancelBtn?.addEventListener("click", closeTaskModal);
-    dashboardRefs.taskModal.addEventListener("click", event => {
+    if (dashboardRefs.taskCancelBtn && dashboardRefs.taskCancelBtn.dataset.dashboardBound !== "true") {
+        dashboardRefs.taskCancelBtn.addEventListener("click", closeTaskModal);
+        dashboardRefs.taskCancelBtn.dataset.dashboardBound = "true";
+    }
+    if (dashboardRefs.taskModal && dashboardRefs.taskModal.dataset.dashboardBound !== "true") {
+        dashboardRefs.taskModal.addEventListener("click", event => {
         if (event.target?.dataset?.modalDismiss !== undefined) {
             closeTaskModal();
         }
-    });
+        });
+        dashboardRefs.taskModal.dataset.dashboardBound = "true";
+    }
     dashboardRefs.taskForm?.addEventListener("submit", handleTaskFormSubmit);
     populateDueTimeSelects();
     setTaskFormMode("create");
@@ -157,19 +306,26 @@ function populateDueTimeSelects() {
 }
 
 function openTaskModal(task = null) {
-    if (!dashboardRefs?.taskModal) {
+    const modal = dashboardRefs?.taskModal || document.getElementById("taskModal");
+    const form = dashboardRefs?.taskForm || modal?.querySelector("form");
+    if (!modal || !form) {
         return;
     }
+    if (dashboardRefs?.taskModal !== modal) {
+        // dashboardRefs not initialized; ensure baseline state
+        modal.setAttribute("data-fallback", "true");
+    }
     setTaskFormMode(task ? "edit" : "create", task || null);
-    dashboardRefs.taskModal.removeAttribute("hidden");
-    dashboardRefs.taskModal?.querySelector("input[name='title']")?.focus();
+    modal.removeAttribute("hidden");
+    modal.querySelector("input[name='title']")?.focus();
 }
 
 function closeTaskModal() {
-    if (!dashboardRefs?.taskModal) {
+    const modal = dashboardRefs?.taskModal || document.getElementById("taskModal");
+    if (!modal) {
         return;
     }
-    dashboardRefs.taskModal.setAttribute("hidden", "true");
+    modal.setAttribute("hidden", "true");
     setTaskFormMode("create");
 }
 
@@ -243,7 +399,7 @@ function buildTaskPayload(form) {
 async function submitPersonalTask(basePayload, form) {
     const payload = { ...basePayload, is_personal: true };
     setTaskFormMessage("", "");
-    setLoading(dashboardRefs.taskSubmitBtn, true, "Creating...");
+    setLoading(getTaskSubmitButton(), true, "Creating...");
 
     try {
         const response = await authedFetch("/tasks/", {
@@ -268,13 +424,13 @@ async function submitPersonalTask(basePayload, form) {
     } catch (error) {
         setTaskFormMessage(error.message, "error");
     } finally {
-        setLoading(dashboardRefs.taskSubmitBtn, false, "Create task");
+        setLoading(getTaskSubmitButton(), false, "Create task");
     }
 }
 
 async function submitTaskUpdate(taskId, payload, form) {
     setTaskFormMessage("", "");
-    setLoading(dashboardRefs.taskSubmitBtn, true, "Saving...");
+    setLoading(getTaskSubmitButton(), true, "Saving...");
 
     try {
         const response = await authedFetch(`/tasks/${taskId}`, {
@@ -300,15 +456,16 @@ async function submitTaskUpdate(taskId, payload, form) {
         setTaskFormMessage(error.message, "error");
     } finally {
         const label = form.dataset.mode === "edit" ? "Save changes" : "Create task";
-        setLoading(dashboardRefs.taskSubmitBtn, false, label);
+        setLoading(getTaskSubmitButton(), false, label);
     }
 }
 
 function setTaskFormMode(mode = "create", task = null) {
-    const form = dashboardRefs?.taskForm;
+    const form = dashboardRefs?.taskForm || document.getElementById("taskForm");
     if (!form) {
         return;
     }
+    const submitBtn = getTaskSubmitButton();
 
     form.reset();
     setTaskFormMessage("", "");
@@ -325,8 +482,8 @@ function setTaskFormMode(mode = "create", task = null) {
         setDueDateFields(task.due_date);
         setModalCopy("edit");
         rememberTaskFormBaseline(task);
-        if (dashboardRefs.taskSubmitBtn) {
-            dashboardRefs.taskSubmitBtn.textContent = "Save changes";
+        if (submitBtn) {
+            submitBtn.textContent = "Save changes";
         }
     } else {
         delete form.dataset.taskId;
@@ -334,14 +491,14 @@ function setTaskFormMode(mode = "create", task = null) {
         setDueDateFields(null);
         setModalCopy("create");
         rememberTaskFormBaseline(null);
-        if (dashboardRefs.taskSubmitBtn) {
-            dashboardRefs.taskSubmitBtn.textContent = "Create task";
+        if (submitBtn) {
+            submitBtn.textContent = "Create task";
         }
     }
 }
 
 function rememberTaskFormBaseline(task) {
-    const form = dashboardRefs?.taskForm;
+    const form = dashboardRefs?.taskForm || document.getElementById("taskForm");
     if (!form) {
         return;
     }
@@ -398,8 +555,8 @@ function safeIsoString(value) {
 }
 
 function setModalCopy(mode) {
-    const titleEl = dashboardRefs?.taskModalTitle;
-    const subtitleEl = dashboardRefs?.taskModalSubtitle;
+    const titleEl = dashboardRefs?.taskModalTitle || document.getElementById("taskModalTitle");
+    const subtitleEl = dashboardRefs?.taskModalSubtitle || document.getElementById("taskModalSubtitle");
     const key = mode === "edit" ? "editText" : "createText";
     if (titleEl && titleEl.dataset?.[key]) {
         titleEl.textContent = titleEl.dataset[key];
@@ -493,7 +650,7 @@ async function updateTaskStatus(taskId, newStatus, select) {
 }
 
 function setTaskFormMessage(text, state) {
-    const el = dashboardRefs?.taskMessage;
+    const el = dashboardRefs?.taskMessage || document.getElementById("taskFormMessage");
     if (!el) return;
     el.textContent = text;
     el.className = "helper-text";
@@ -622,4 +779,69 @@ function toggleDueTimeSelects(enabled, resetValue = false) {
             select.selectedIndex = 0;
         }
     });
+}
+
+function getTaskSubmitButton() {
+    return dashboardRefs?.taskSubmitBtn || document.getElementById("taskSubmitBtn");
+}
+
+function setLoading(button, isLoading, label) {
+    const target = button || getTaskSubmitButton();
+    if (!target) {
+        return;
+    }
+    target.disabled = Boolean(isLoading);
+    if (label) {
+        target.textContent = label;
+    }
+}
+
+function ensureDashboardButtonFallbacks() {
+    const addTaskBtn = document.getElementById("openTaskModal");
+    if (addTaskBtn && addTaskBtn.dataset.dashboardBound !== "true") {
+        addTaskBtn.addEventListener("click", handleAddTaskShortcut);
+        addTaskBtn.dataset.dashboardBound = "true";
+    }
+
+    const newProjectBtn = document.getElementById("goToProjectsBtn");
+    if (newProjectBtn && newProjectBtn.dataset.dashboardBound !== "true") {
+        newProjectBtn.addEventListener("click", handleNewProjectShortcut);
+        newProjectBtn.dataset.dashboardBound = "true";
+    }
+
+    const toggleBtn = document.getElementById("toggleTaskVisibilityBtn");
+    const shell = document.querySelector(".dashboard-shell");
+    if (toggleBtn && shell && toggleBtn.dataset.dashboardBound !== "true") {
+        applyVisibilityButtonState(toggleBtn, shell.classList.contains("board-hidden"));
+        toggleBtn.addEventListener("click", () => {
+            toggleDashboardBoardVisibility(shell, toggleBtn);
+        });
+        toggleBtn.dataset.dashboardBound = "true";
+    }
+
+    ensureTaskModalFallbacks();
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ensureDashboardButtonFallbacks);
+} else {
+    ensureDashboardButtonFallbacks();
+}
+
+function ensureTaskModalFallbacks() {
+    const cancelBtn = document.getElementById("taskCancelBtn");
+    if (cancelBtn && cancelBtn.dataset.dashboardBound !== "true") {
+        cancelBtn.addEventListener("click", closeTaskModal);
+        cancelBtn.dataset.dashboardBound = "true";
+    }
+
+    const modal = document.getElementById("taskModal");
+    if (modal && modal.dataset.dashboardBound !== "true") {
+        modal.addEventListener("click", event => {
+            if (event.target?.dataset?.modalDismiss !== undefined) {
+                closeTaskModal();
+            }
+        });
+        modal.dataset.dashboardBound = "true";
+    }
 }

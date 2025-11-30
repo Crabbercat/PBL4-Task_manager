@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS project (
     description VARCHAR(500) NULL,
     color VARCHAR(20) NULL,
     owner_id INT UNSIGNED NOT NULL,
+    archived TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -111,6 +112,7 @@ CREATE TABLE IF NOT EXISTS task (
 CREATE TABLE IF NOT EXISTS project_member (
     project_id INT UNSIGNED NOT NULL,
     user_id INT UNSIGNED NOT NULL,
+    role ENUM('owner','manager','member') NOT NULL DEFAULT 'member',
     joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (project_id, user_id),
     KEY idx_project_member_user (user_id),
