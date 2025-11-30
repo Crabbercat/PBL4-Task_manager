@@ -564,14 +564,23 @@ function togglePersonalMessage(visible, text, options = {}) {
 function setPersonalFormMessage(text, state) {
     const el = personalTaskState?.formMessage;
     if (!el) return;
-    el.textContent = text;
+    const isToastOnly = state === "success" || state === "error";
     el.className = "helper-text";
-    if (state) {
-        el.classList.add(state);
-        if (state === "success" || state === "error") {
-            const resolved = text || (state === "success" ? "Action completed" : "Something went wrong");
-            window.showToast?.(resolved, { type: state });
+
+    if (isToastOnly) {
+        el.hidden = true;
+        el.textContent = "";
+    } else {
+        el.hidden = false;
+        el.textContent = text;
+        if (state) {
+            el.classList.add(state);
         }
+    }
+
+    if (isToastOnly) {
+        const resolved = text || (state === "success" ? "Action completed" : "Something went wrong");
+        window.showToast?.(resolved, { type: state });
     }
 }
 

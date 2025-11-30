@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
@@ -16,9 +16,34 @@ router = APIRouter()
 active_connections: Set[WebSocket] = set()
 
 
+VIETNAM_TZ = timezone(timedelta(hours=7))
+
+
+def _now_vietnam() -> datetime:
+    """Return current Vietnam time as a timezone-naive datetime."""
+    return datetime.now(VIETNAM_TZ).replace(tzinfo=None)
+
+
+def _to_vietnam_naive(dt: Optional[datetime]) -> Optional[datetime]:
+    """Convert aware datetimes to Vietnam time and drop tzinfo for storage."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(VIETNAM_TZ).replace(tzinfo=None)
+
+
+def _normalize_task_datetime_fields(task_data: dict):
+    for date_field in ("start_date", "end_date", "due_date"):
+        value = task_data.get(date_field)
+        if isinstance(value, datetime):
+            task_data[date_field] = _to_vietnam_naive(value)
+
+
 def _prepare_task_dates(task_data: dict, start_date: Optional[datetime]):
     """Ensure start/end dates follow the creation rules."""
-    task_data["start_date"] = start_date or datetime.utcnow()
+    normalized_start = _to_vietnam_naive(start_date)
+    task_data["start_date"] = normalized_start or _now_vietnam()
     task_data["end_date"] = None
 
 
@@ -83,6 +108,7 @@ def _create_task_record(current_user: User, task: TaskCreate, db: Session) -> Ta
         if task.assignee_id and task.assignee_id != current_user.id:
             raise HTTPException(status_code=403, detail="Personal tasks can only be assigned to yourself")
         task_data = task.dict(exclude_unset=True, exclude={"project_id"})
+        _normalize_task_datetime_fields(task_data)
         task_data["project_id"] = None
         task_data["assignee_id"] = current_user.id
         task_data["creator_id"] = current_user.id
@@ -107,6 +133,7 @@ def _create_task_record(current_user: User, task: TaskCreate, db: Session) -> Ta
                 raise HTTPException(status_code=400, detail="Invalid parent task")
 
         task_data = task.dict(exclude_unset=True)
+        _normalize_task_datetime_fields(task_data)
         task_data["creator_id"] = current_user.id
 
     _prepare_task_dates(task_data, task.start_date)
@@ -298,6 +325,7 @@ def update_task(
     raw_update = task_update.dict(exclude_unset=True)
     requested_fields = set(raw_update.keys())
     update_data = raw_update.copy()
+    _normalize_task_datetime_fields(update_data)
 
     if db_task.is_personal:
         if db_task.creator_id != current_user.id:
@@ -318,7 +346,9 @@ def update_task(
                     )
     update_data.pop("end_date", None)
     completed_flag = update_data.pop("completed", None)
-    effective_due_date = update_data.get("due_date", db_task.due_date)
+    effective_due_date = update_data.get("due_date")
+    if effective_due_date is None:
+        effective_due_date = _to_vietnam_naive(db_task.due_date)
 
     if "assignee_id" in update_data:
         if update_data["assignee_id"] is None:
@@ -357,7 +387,7 @@ def update_task(
                 raise HTTPException(status_code=400, detail="Invalid status value")
 
         if new_status == TaskStatus.DONE:
-            completed_at = datetime.utcnow()
+            completed_at = _now_vietnam()
             if effective_due_date and completed_at > effective_due_date:
                 raise HTTPException(status_code=400, detail="Cannot mark task as done after its due date. Adjust the due date first.")
             db_task.end_date = completed_at
@@ -373,7 +403,7 @@ def update_task(
     for key, value in update_data.items():
         setattr(db_task, key, value)
 
-    db_task.updated_at = datetime.utcnow()
+    db_task.updated_at = _now_vietnam()
     db.commit()
     db.refresh(db_task)
     return db_task

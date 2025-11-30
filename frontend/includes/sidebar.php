@@ -55,7 +55,7 @@
             <img class="sidebar__icon" src="assets/images/icons/setting.png" alt="Settings" loading="lazy">
             <span>Settings</span>
         </a>
-        <a class="sidebar__link" href="#">
+        <!-- <a class="sidebar__link" href="#">
             <img class="sidebar__icon" src="assets/images/icons/completed.png" alt="Completed" loading="lazy">
             <span>Completed</span>
         </a>
@@ -66,7 +66,7 @@
         <a class="sidebar__link" href="#">
             <img class="sidebar__icon" src="assets/images/icons/launches.png" alt="Launches" loading="lazy">
             <span>Launches</span>
-        </a>
+        </a> -->
     </nav>
 
     <div class="sidebar__footer">

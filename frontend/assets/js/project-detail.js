@@ -87,7 +87,8 @@ function initProjectDetailPage() {
             archiveProjectBtn: document.getElementById("archiveProjectBtn"),
             deleteProjectBtn: document.getElementById("deleteProjectBtn")
         },
-        pendingEditTaskId: null
+            pendingEditTaskId: null,
+            taskFormBaseline: null
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -644,6 +645,8 @@ function openProjectTaskModal(task = null) {
     taskForm.assignee_id.value = task?.assignee?.id || "";
     taskForm.tags.value = task?.tags || "";
 
+    rememberProjectTaskBaseline(task);
+
     taskModal.removeAttribute("hidden");
     taskForm.title.focus();
 }
@@ -657,6 +660,7 @@ function closeProjectTaskModal() {
     taskForm.reset();
     taskForm.dataset.mode = "create";
     taskForm.dataset.taskId = "";
+    projectDetailState.taskFormBaseline = null;
     if (taskMessage) {
         taskMessage.textContent = "";
         taskMessage.classList.remove("error", "success");
@@ -1016,6 +1020,11 @@ async function handleProjectTaskFormSubmit(event) {
         return;
     }
 
+    if (mode === "edit" && !hasProjectTaskChanges(payload)) {
+        toggleFormMessage(taskMessage, "Make a change before saving.", false, "error");
+        return;
+    }
+
     setButtonLoadingState(taskSubmitBtn, true, mode === "edit" ? "Saving..." : "Creating...");
     toggleFormMessage(taskMessage, "", true);
 
@@ -1051,6 +1060,44 @@ function buildTaskPayload(form) {
         assignee_id: form.assignee_id.value ? Number(form.assignee_id.value) : null
     };
     return payload;
+}
+
+function rememberProjectTaskBaseline(task) {
+    if (!projectDetailState) {
+        return;
+    }
+    if (!task) {
+        projectDetailState.taskFormBaseline = null;
+        return;
+    }
+    projectDetailState.taskFormBaseline = normalizeProjectTaskPayload({
+        title: task.title || "",
+        description: task.description || null,
+        priority: (task.priority || "medium").toLowerCase(),
+        due_date: safeIsoString(task.due_date),
+        tags: task.tags ? task.tags.trim() || null : null,
+        assignee_id: task.assignee?.id ?? null
+    });
+}
+
+function normalizeProjectTaskPayload(payload) {
+    return {
+        title: payload.title || "",
+        description: payload.description || null,
+        priority: (payload.priority || "medium").toLowerCase(),
+        due_date: payload.due_date || null,
+        tags: payload.tags || null,
+        assignee_id: Number.isFinite(payload.assignee_id) ? Number(payload.assignee_id) : null
+    };
+}
+
+function hasProjectTaskChanges(payload) {
+    const baseline = projectDetailState?.taskFormBaseline;
+    if (!baseline) {
+        return true;
+    }
+    const current = normalizeProjectTaskPayload(payload);
+    return Object.keys({ ...baseline, ...current }).some(key => baseline[key] !== current[key]);
 }
 
 async function createProjectTask(payload) {
@@ -1163,12 +1210,22 @@ function toggleFormMessage(element, message, hide = false, type = "") {
     if (!element) {
         return;
     }
-    element.hidden = hide;
-    element.textContent = message;
+    const isToastOnly = type === "success" || type === "error";
     element.classList.remove("error", "success");
+
+    if (isToastOnly) {
+        element.hidden = true;
+        element.textContent = "";
+    } else {
+        element.hidden = hide;
+        element.textContent = message;
+    }
+
     if (type) {
-        element.classList.add(type);
-        if (type === "success" || type === "error") {
+        if (!isToastOnly) {
+            element.classList.add(type);
+        }
+        if (isToastOnly) {
             const resolved = message || (type === "success" ? "Action completed" : "Something went wrong");
             window.showToast?.(resolved, { type });
         }
@@ -1265,4 +1322,15 @@ function humanize(value) {
         return "";
     }
     return value.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function safeIsoString(value) {
+    if (!value) {
+        return null;
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date.toISOString();
 }
