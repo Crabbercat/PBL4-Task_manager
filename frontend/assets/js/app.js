@@ -180,13 +180,14 @@ function renderDashboard(tasks) {
     const filteredTasks = filterTasksForCurrentUser(taskList);
     dashboardRefs.latestTasks = filteredTasks;
 
-    const groupedAll = groupTasksByStatus(filteredTasks);
+    const groupedAll = ensureGroupedObject(groupTasksByStatus(filteredTasks));
     const projectTasks = filteredTasks.filter(task => !task.is_personal);
     const personalTasks = filteredTasks.filter(task => task.is_personal);
-    const groupedProject = groupTasksByStatus(projectTasks);
-    const groupedPersonal = groupTasksByStatus(personalTasks);
+    const groupedProject = ensureGroupedObject(groupTasksByStatus(projectTasks));
+    const groupedPersonal = ensureGroupedObject(groupTasksByStatus(personalTasks));
 
-    Object.entries(groupedAll).forEach(([key, list]) => {
+    Object.entries(groupedAll).forEach(([key, value]) => {
+        const list = Array.isArray(value) ? value : [];
         const column = dashboardRefs.columns[key];
         if (!column) return;
         column.innerHTML = list.length

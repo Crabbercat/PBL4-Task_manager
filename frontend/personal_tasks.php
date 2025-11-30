@@ -18,7 +18,9 @@
         </header>
 
         <section class="personal-board" id="personalTaskBoard" aria-live="polite"></section>
-        <p class="helper-text helper-text--center" id="personalTaskMessage" hidden>No personal tasks yet. Use the Add task button to capture your first one.</p>
+        <p class="helper-text helper-text--center personal-empty-message" id="personalTaskMessage" hidden>
+            No personal tasks yet. Use the <strong class="personal-empty-message__cta" style="color: var(--primary); font-weight: 700; text-decoration: underline;">Add task</strong> button to capture your first one.
+        </p>
 
         <div class="modal" id="personalTaskModal" hidden>
             <div class="modal__overlay" data-modal-dismiss></div>

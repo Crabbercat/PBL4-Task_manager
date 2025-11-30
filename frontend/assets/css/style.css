@@ -597,6 +597,12 @@ select option {
     font-weight: 600;
 }
 
+.personal-empty-message__cta {
+    color: var(--primary) !important;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
 .personal-link {
     font-weight: 700;
     text-decoration-thickness: 2px;
