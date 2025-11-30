@@ -1,15 +1,59 @@
 const DASHBOARD_DATE_LOOKAHEAD_DAYS = 7;
+const CHART_LABELS = ["To do", "In progress", "Done"];
+const CHART_COLORS = ["#fbbf24", "#38bdf8", "#22c55e"];
+const DOUGHNUT_VALUE_PLUGIN_ID = "doughnutValueLabels";
 let dashboardRefs = null;
 let currentDashboardUser = null;
 let userProjectsCache = null;
+let chartValuePluginRegistered = false;
+let dashboardScrollLockListenerAttached = false;
 
 document.addEventListener("DOMContentLoaded", () => {
+    setupBackToTopButton();
     if (document.body.classList.contains("body-dashboard")) {
         initDashboard();
     }
 });
 
+function registerDashboardChartPlugin() {
+    if (chartValuePluginRegistered || typeof Chart === "undefined") {
+        return;
+    }
+    Chart.register({
+        id: DOUGHNUT_VALUE_PLUGIN_ID,
+        afterDatasetsDraw(chart) {
+            const options = chart.options?.plugins?.[DOUGHNUT_VALUE_PLUGIN_ID] || {};
+            const color = options.color || "#0f172a";
+            const fontSize = options.fontSize || 13;
+            const fontFamily = options.fontFamily || "Inter, system-ui, sans-serif";
+            const fontWeight = options.fontWeight || "600";
+
+            const datasets = chart.data?.datasets || [];
+            const ctx = chart.ctx;
+            ctx.save();
+            datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                meta.data.forEach((arc, index) => {
+                    const value = dataset.data[index];
+                    if (!value) {
+                        return;
+                    }
+                    const { x, y } = arc.tooltipPosition();
+                    ctx.fillStyle = color;
+                    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(value, x, y);
+                });
+            });
+            ctx.restore();
+        }
+    });
+    chartValuePluginRegistered = true;
+}
+
 function initDashboard() {
+    registerDashboardChartPlugin();
     dashboardRefs = {
         columns: {
             to_do: document.getElementById("todoColumn"),
@@ -28,6 +72,8 @@ function initDashboard() {
             upcoming: document.getElementById("upcomingTasksStat"),
             projects: document.getElementById("totalProjectsStat")
         },
+        board: document.getElementById("dashboardBoard"),
+        boardToolbar: document.querySelector(".board-toolbar"),
         boardMessage: document.getElementById("emptyBoardMessage"),
         taskModal: document.getElementById("taskModal"),
         taskForm: document.getElementById("taskForm"),
@@ -38,7 +84,11 @@ function initDashboard() {
         newProjectBtn: document.getElementById("goToProjectsBtn"),
         taskModalTitle: document.getElementById("taskModalTitle"),
         taskModalSubtitle: document.getElementById("taskModalSubtitle"),
-        latestTasks: []
+        latestTasks: [],
+        chart: {
+            project: createChartRefs("project"),
+            personal: createChartRefs("personal")
+        }
     };
 
     fetchCurrentUser()
@@ -53,8 +103,27 @@ function initDashboard() {
 
     setupTaskModal();
     setupBoardVisibilityToggle();
+    ensureDashboardScrollLockListener();
+    syncDashboardScrollLock();
     setupDashboardShortcuts();
     ensureDashboardButtonFallbacks();
+}
+
+function createChartRefs(prefix) {
+    const canvas = document.getElementById(`${prefix}StatusChart`);
+    const legendWrapper = document.getElementById(`${prefix}StatusLegend`);
+    return {
+        canvas,
+        visual: canvas?.closest(".chart-card__visual") || null,
+        legend: {
+            todo: document.getElementById(`${prefix}LegendTodo`),
+            progress: document.getElementById(`${prefix}LegendProgress`),
+            done: document.getElementById(`${prefix}LegendDone`),
+            wrapper: legendWrapper
+        },
+        empty: document.getElementById(`${prefix}ChartEmpty`),
+        instance: null
+    };
 }
 
 async function fetchTasks() {
@@ -110,18 +179,14 @@ function renderDashboard(tasks) {
     const taskList = Array.isArray(tasks) ? tasks : [];
     const filteredTasks = filterTasksForCurrentUser(taskList);
     dashboardRefs.latestTasks = filteredTasks;
-    const grouped = { to_do: [], in_progress: [], done: [] };
 
-    filteredTasks.forEach(task => {
-        const key = (task.status || '').toLowerCase();
-        if (grouped[key]) {
-            grouped[key].push(task);
-        } else {
-            grouped.to_do.push(task);
-        }
-    });
+    const groupedAll = groupTasksByStatus(filteredTasks);
+    const projectTasks = filteredTasks.filter(task => !task.is_personal);
+    const personalTasks = filteredTasks.filter(task => task.is_personal);
+    const groupedProject = groupTasksByStatus(projectTasks);
+    const groupedPersonal = groupTasksByStatus(personalTasks);
 
-    Object.entries(grouped).forEach(([key, list]) => {
+    Object.entries(groupedAll).forEach(([key, list]) => {
         const column = dashboardRefs.columns[key];
         if (!column) return;
         column.innerHTML = list.length
@@ -136,20 +201,50 @@ function renderDashboard(tasks) {
     const upcoming = filteredTasks.filter(task => isUpcoming(task.due_date)).length;
 
     dashboardRefs.stats.total.textContent = filteredTasks.length;
-    dashboardRefs.stats.progress.textContent = grouped.in_progress.length;
-    dashboardRefs.stats.completed.textContent = grouped.done.length;
+    dashboardRefs.stats.progress.textContent = groupedAll.in_progress.length;
+    dashboardRefs.stats.completed.textContent = groupedAll.done.length;
     dashboardRefs.stats.upcoming.textContent = upcoming;
+    updateStatusChart("project", groupedProject);
+    updateStatusChart("personal", groupedPersonal);
     updateProjectStat();
     updateEmptyStateVisibility(filteredTasks.length);
+    syncDashboardScrollLock();
 }
 
 function updateEmptyStateVisibility(taskCount) {
     if (!dashboardRefs?.boardMessage) {
         return;
     }
+    const shell = document.querySelector(".dashboard-shell");
+    const boardHidden = shell?.classList.contains("board-hidden");
+    if (boardHidden) {
+        dashboardRefs.boardMessage.hidden = true;
+        return;
+    }
     const hasTasks = taskCount > 0;
     dashboardRefs.boardMessage.dataset.hasTasks = hasTasks ? "true" : "false";
     dashboardRefs.boardMessage.hidden = hasTasks;
+}
+
+function groupTasksByStatus(taskList) {
+    const grouped = { to_do: [], in_progress: [], done: [] };
+    (taskList || []).forEach(task => {
+        const key = (task.status || "").toLowerCase();
+        if (grouped[key]) {
+            grouped[key].push(task);
+        } else {
+            grouped.to_do.push(task);
+        }
+    });
+    return grouped;
+}
+
+function ensureGroupedObject(grouped) {
+    return {
+        to_do: grouped?.to_do ?? [],
+        in_progress: grouped?.in_progress ?? [],
+        done: grouped?.done ?? []
+    };
 }
 
 function filterTasksForCurrentUser(taskList) {
@@ -176,6 +271,107 @@ function updateProjectStat() {
         return;
     }
     dashboardRefs.stats.projects.textContent = userProjectsCache.length;
+}
+
+function updateStatusChart(chartKey, grouped) {
+    const chartRefs = dashboardRefs?.chart?.[chartKey];
+    if (!chartRefs) {
+        return;
+    }
+
+    const buckets = ensureGroupedObject(grouped);
+    const dataset = [
+        buckets.to_do.length,
+        buckets.in_progress.length,
+        buckets.done.length
+    ];
+    const total = dataset.reduce((sum, value) => sum + value, 0);
+
+    updateStatusLegend(chartKey, dataset);
+    toggleChartEmptyState(chartKey, total === 0);
+
+    if (typeof Chart === "undefined" || !chartRefs.canvas) {
+        return;
+    }
+
+    if (total === 0) {
+        if (chartRefs.instance) {
+            chartRefs.instance.destroy();
+            chartRefs.instance = null;
+        }
+        return;
+    }
+
+    if (!chartRefs.instance) {
+        const ctx = chartRefs.canvas.getContext("2d");
+        chartRefs.instance = new Chart(ctx, {
+            type: "doughnut",
+            data: {
+                labels: CHART_LABELS,
+                datasets: [{
+                    data: dataset,
+                    backgroundColor: CHART_COLORS,
+                    borderColor: "transparent",
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "65%",
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const value = context.raw ?? 0;
+                                return `${context.label}: ${value}`;
+                            }
+                        }
+                    },
+                    [DOUGHNUT_VALUE_PLUGIN_ID]: {
+                        color: "#020617",
+                        fontSize: 14
+                    }
+                }
+            }
+        });
+    } else {
+        chartRefs.instance.data.datasets[0].data = dataset;
+        chartRefs.instance.update();
+    }
+}
+
+function updateStatusLegend(chartKey, [todoCount, progressCount, doneCount]) {
+    const legend = dashboardRefs?.chart?.[chartKey]?.legend;
+    if (!legend) {
+        return;
+    }
+    if (legend.todo) {
+        legend.todo.textContent = todoCount;
+    }
+    if (legend.progress) {
+        legend.progress.textContent = progressCount;
+    }
+    if (legend.done) {
+        legend.done.textContent = doneCount;
+    }
+}
+
+function toggleChartEmptyState(chartKey, isEmpty) {
+    const chartRefs = dashboardRefs?.chart?.[chartKey];
+    if (!chartRefs) {
+        return;
+    }
+    if (chartRefs.visual) {
+        chartRefs.visual.hidden = isEmpty;
+    }
+    if (chartRefs.legend?.wrapper) {
+        chartRefs.legend.wrapper.hidden = isEmpty;
+    }
+    if (chartRefs.empty) {
+        chartRefs.empty.hidden = !isEmpty;
+    }
 }
 
 function setupBoardVisibilityToggle() {
@@ -236,7 +432,78 @@ function toggleDashboardBoardVisibility(shellRef, buttonRef) {
     const isHidden = shell.classList.toggle("board-hidden");
     applyVisibilityButtonState(button, isHidden);
     updateEmptyStateVisibility(dashboardRefs?.latestTasks?.length || 0);
+    if (!isHidden) {
+        scrollBoardIntoView();
+    } else {
+        scrollPageToTop();
+    }
+    syncDashboardScrollLock();
     return true;
+}
+
+function ensureDashboardScrollLockListener() {
+    if (dashboardScrollLockListenerAttached) {
+        return;
+    }
+    window.addEventListener("resize", syncDashboardScrollLock, { passive: true });
+    dashboardScrollLockListenerAttached = true;
+}
+
+function syncDashboardScrollLock() {
+    const body = document.body;
+    const shell = document.querySelector(".dashboard-shell");
+    if (!body || !shell) {
+        if (body) {
+            body.classList.remove("dashboard-scroll-locked");
+        }
+        return;
+    }
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const pageHeight = document.documentElement.scrollHeight;
+    const boardHidden = shell.classList.contains("board-hidden");
+    const shouldLock = boardHidden && pageHeight <= viewportHeight + 1;
+    body.classList.toggle("dashboard-scroll-locked", shouldLock);
+}
+
+function scrollBoardIntoView() {
+    const target = dashboardRefs?.boardToolbar || dashboardRefs?.board || document.getElementById("dashboardBoard");
+    if (!target) {
+        return;
+    }
+    requestAnimationFrame(() => {
+        const offset = target.getBoundingClientRect().top + window.scrollY - 32;
+        window.scrollTo({
+            top: Math.max(offset, 0),
+            behavior: "smooth"
+        });
+    });
+}
+
+function scrollPageToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function setupBackToTopButton() {
+    const button = document.querySelector(".back-to-top");
+    if (!button) {
+        return;
+    }
+
+    const toggleVisibility = () => {
+        if (window.scrollY > 240) {
+            button.classList.add("back-to-top--visible");
+        } else {
+            button.classList.remove("back-to-top--visible");
+        }
+    };
+
+    button.addEventListener("click", event => {
+        event.preventDefault();
+        scrollPageToTop();
+    });
+
+    window.addEventListener("scroll", toggleVisibility, { passive: true });
+    toggleVisibility();
 }
 
 function setBoardMessage(message) {

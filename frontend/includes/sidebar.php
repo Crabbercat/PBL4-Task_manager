@@ -43,13 +43,13 @@
             <img class="sidebar__icon" src="assets/images/icons/dashboard.png" alt="Dashboard" loading="lazy">
             <span>Dashboard</span>
         </a>
-        <a class="sidebar__link <?php echo in_array($currentPage, ['projects.php', 'project_detail.php'], true) ? 'active' : ''; ?>" href="projects.php">
-            <img class="sidebar__icon" src="assets/images/icons/projects.png" alt="Projects" loading="lazy">
-            <span>Projects</span>
-        </a>
         <a class="sidebar__link <?php echo $currentPage === 'personal_tasks.php' ? 'active' : ''; ?>" href="personal_tasks.php">
             <img class="sidebar__icon" src="assets/images/icons/tasks.png" alt="Personal tasks" loading="lazy">
             <span>Personal tasks</span>
+        </a>        
+        <a class="sidebar__link <?php echo in_array($currentPage, ['projects.php', 'project_detail.php'], true) ? 'active' : ''; ?>" href="projects.php">
+            <img class="sidebar__icon" src="assets/images/icons/projects.png" alt="Projects" loading="lazy">
+            <span>Projects</span>
         </a>
         <a class="sidebar__link <?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>" href="settings.php">
             <img class="sidebar__icon" src="assets/images/icons/setting.png" alt="Settings" loading="lazy">

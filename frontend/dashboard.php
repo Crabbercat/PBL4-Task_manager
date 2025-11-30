@@ -40,6 +40,56 @@
             </article>
         </section>
 
+        <section class="chart-row" aria-label="Task distribution">
+            <div class="chart-grid">
+                <article class="chart-card" aria-label="Personal task status">
+                    <header class="chart-card__header">
+                        <div>
+                            <p class="eyebrow">Personal tasks</p>
+                            <h2>Private reminders</h2>
+                        </div>
+                        <p class="helper-text">Live chart of your personal tasks.</p>
+                    </header>
+                    <div class="chart-card__body">
+                        <div class="chart-card__visual" role="img" aria-label="Personal task status chart">
+                            <canvas id="personalStatusChart" aria-hidden="true"></canvas>
+                        </div>
+                        <ul class="chart-legend" id="personalStatusLegend" aria-live="polite">
+                            <li><span class="legend-dot legend-dot--todo"></span>To do: <strong id="personalLegendTodo">0</strong></li>
+                            <li><span class="legend-dot legend-dot--progress"></span>In progress: <strong id="personalLegendProgress">0</strong></li>
+                            <li><span class="legend-dot legend-dot--done"></span>Done: <strong id="personalLegendDone">0</strong></li>
+                        </ul>
+                        <p class="chart-card__empty helper-text" id="personalChartEmpty" hidden>
+                            You haven't logged any personal tasks yet. Capture a reminder to populate this chart.
+                        </p>
+                    </div>
+                </article>
+
+                <article class="chart-card" aria-label="Project task status">
+                    <header class="chart-card__header">
+                        <div>
+                            <p class="eyebrow">Project tasks</p>
+                            <h2>Assigned work</h2>
+                        </div>
+                        <p class="helper-text">Live chart of your project tasks.</p>
+                    </header>
+                    <div class="chart-card__body">
+                        <div class="chart-card__visual" role="img" aria-label="Project task status chart">
+                            <canvas id="projectStatusChart" aria-hidden="true"></canvas>
+                        </div>
+                        <ul class="chart-legend" id="projectStatusLegend" aria-live="polite">
+                            <li><span class="legend-dot legend-dot--todo"></span>To do: <strong id="projectLegendTodo">0</strong></li>
+                            <li><span class="legend-dot legend-dot--progress"></span>In progress: <strong id="projectLegendProgress">0</strong></li>
+                            <li><span class="legend-dot legend-dot--done"></span>Done: <strong id="projectLegendDone">0</strong></li>
+                        </ul>
+                        <p class="chart-card__empty helper-text" id="projectChartEmpty" hidden>
+                            No assigned project work yet. As soon as you're added to a project, progress will appear here.
+                        </p>
+                    </div>
+                </article>
+            </div>
+        </section>
+
         <section class="board-toolbar">
             <button class="ghost-button" type="button" id="toggleTaskVisibilityBtn" data-state="hidden">Show tasks</button>
         </section>

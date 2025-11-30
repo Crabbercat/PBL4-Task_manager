@@ -1,3 +1,7 @@
+    <button class="back-to-top" type="button" aria-label="Back to top">
+        <span>&uarr;</span>
+    </button>
+    <script src="assets/js/vendor/chart.umd.min.js?v=<?php echo time(); ?>"></script>
     <script src="assets/js/notifications.js?v=<?php echo time(); ?>"></script>
     <script src="assets/js/auth.js?v=<?php echo time(); ?>"></script>
     <script src="assets/js/app.js?v=<?php echo time(); ?>"></script>

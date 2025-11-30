@@ -186,6 +186,15 @@ WHERE p.name = 'Customer Portal Rollout'
             SELECT 1 FROM project_member pm WHERE pm.project_id = p.id AND pm.user_id = u.id
     );
 
+INSERT INTO project_member (project_id, user_id, role, joined_at)
+SELECT p.id, u.id, 'owner', NOW()
+FROM project p
+JOIN user u ON u.username = 'admin'
+WHERE p.name = 'Customer Portal Rollout'
+    AND NOT EXISTS (
+        SELECT 1 FROM project_member pm WHERE pm.project_id = p.id AND pm.user_id = u.id
+    );
+
 INSERT INTO task (title, description, status, priority, start_date, due_date, completed, end_date, creator_id, assignee_id, project_id, is_personal, tags)
 SELECT 'Sprint Planning Workshop', 'Outline scope and backlog for the first deployment sprint.', 'to_do', 'high', NOW(), DATE_ADD(NOW(), INTERVAL 5 DAY), 0, NULL,
              admin_user.id, manager_user.id, p.id, 0, 'planning,sprint'
@@ -227,6 +236,38 @@ JOIN user member_user ON member_user.username = 'member'
 WHERE p.name = 'Customer Portal Rollout'
     AND NOT EXISTS (
             SELECT 1 FROM task t WHERE t.title = 'Stakeholder Demo Prep' AND t.project_id = p.id
+    );
+
+INSERT INTO task (title, description, status, priority, start_date, due_date, completed, end_date, creator_id, assignee_id, project_id, is_personal, tags)
+SELECT 'Incident Runbook Draft', 'Document rollback and communication steps for launch incidents.', 'to_do', 'medium', NOW(), DATE_ADD(NOW(), INTERVAL 6 DAY), 0, NULL,
+         manager_user.id, admin_user.id, p.id, 0, 'process,incident'
+FROM project p
+JOIN user manager_user ON manager_user.username = 'manager'
+JOIN user admin_user ON admin_user.username = 'admin'
+WHERE p.name = 'Customer Portal Rollout'
+    AND NOT EXISTS (
+        SELECT 1 FROM task t WHERE t.title = 'Incident Runbook Draft' AND t.project_id = p.id
+    );
+
+INSERT INTO task (title, description, status, priority, start_date, due_date, completed, end_date, creator_id, assignee_id, project_id, is_personal, tags)
+SELECT 'Security Checklist Validation', 'Verify SOC2 controls before enabling new regions.', 'in_progress', 'high', DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_ADD(NOW(), INTERVAL 3 DAY), 0, NULL,
+         manager_user.id, admin_user.id, p.id, 0, 'security,compliance'
+FROM project p
+JOIN user manager_user ON manager_user.username = 'manager'
+JOIN user admin_user ON admin_user.username = 'admin'
+WHERE p.name = 'Customer Portal Rollout'
+    AND NOT EXISTS (
+        SELECT 1 FROM task t WHERE t.title = 'Security Checklist Validation' AND t.project_id = p.id
+    );
+
+INSERT INTO task (title, description, status, priority, start_date, due_date, completed, end_date, creator_id, assignee_id, project_id, is_personal, tags)
+SELECT 'Legacy Data Migration', 'Import the historical customer entitlements archive.', 'done', 'medium', DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY), 1, DATE_SUB(NOW(), INTERVAL 1 DAY),
+         admin_user.id, admin_user.id, p.id, 0, 'data,migration'
+FROM project p
+JOIN user admin_user ON admin_user.username = 'admin'
+WHERE p.name = 'Customer Portal Rollout'
+    AND NOT EXISTS (
+        SELECT 1 FROM task t WHERE t.title = 'Legacy Data Migration' AND t.project_id = p.id
     );
 
 INSERT INTO task (title, description, status, priority, creator_id, assignee_id, is_personal, created_at, due_date)
