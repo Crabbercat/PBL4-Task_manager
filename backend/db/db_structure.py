@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from backend.db.database import Base
@@ -18,14 +19,20 @@ class Team(Base):
 
     members = relationship("User", back_populates="team")
 
+class ProjectMember(Base):
+    __tablename__ = "project_member"
 
-project_members = Table(
-    "project_member",
-    Base.metadata,
-    Column("project_id", ForeignKey("project.id"), primary_key=True),
-    Column("user_id", ForeignKey("user.id"), primary_key=True),
-    Column("joined_at", DateTime, default=datetime.utcnow)
-)
+    project_id = Column(Integer, ForeignKey("project.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
+    role = Column(
+        Enum("owner", "manager", "member", name="project_member_role"),
+        nullable=False,
+        default="member"
+    )
+    joined_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    project = relationship("Project", back_populates="project_members")
+    user = relationship("User", back_populates="project_memberships")
 
 
 class User(Base):
@@ -44,7 +51,8 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
 
     owned_projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
-    projects = relationship("Project", secondary=project_members, back_populates="members")
+    project_memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan")
+    projects = association_proxy("project_memberships", "project")
     tasks_created = relationship("Task", back_populates="creator", foreign_keys="Task.creator_id")
     tasks_assigned = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
     team = relationship("Team", back_populates="members")
@@ -58,12 +66,26 @@ class Project(Base):
     description = Column(String(500), nullable=True)
     color = Column(String(20), nullable=True)
     owner_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    archived = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     owner = relationship("User", back_populates="owned_projects")
-    members = relationship("User", secondary=project_members, back_populates="projects")
+    project_members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+    members = association_proxy("project_members", "user")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+
+    @property
+    def memberships(self):
+        return self.project_members
+
+    @property
+    def member_count(self) -> int:
+        return len(self.project_members)
+
+    @property
+    def task_count(self) -> int:
+        return len(self.tasks)
 
 
 class Task(Base):

@@ -7,7 +7,7 @@ A comprehensive Task Management system featuring a robust FastAPI backend and a 
 -   **User Authentication**: Secure registration and login system using JWT (JSON Web Tokens).
 -   **Task Management**: Full CRUD capabilities for tasks (Create, Read, Update, Delete).
 -   **Team Collaboration**: Create teams, invite members, and manage roles (Admin, Manager, Member).
--   **Project Organization**: Group tasks into projects for better organization.
+-   **Project Collaboration 2.0**: Create multi-member projects with owner/manager/member roles, membership management, project archiving, and Kanban-style task boards.
 -   **Dashboard**: Interactive dashboard with task statistics and quick actions.
 -   **Responsive Design**: Modern UI with dark/light mode support.
 
@@ -65,7 +65,14 @@ cd PBL4-Task_manager
     -   **Option B (phpMyAdmin)**:
         -   Open phpMyAdmin (usually `http://localhost/phpmyadmin`).
         -   Import `task_management.sql`.
-    -   *Note: The SQL file creates a database named `task_manager`.*
+    -   *Note: The SQL file creates a database named `task_manager` and now includes project-level roles (`project_member.role`) plus the `project.archived` flag.*
+
+> **Existing databases:** run the latest Alembic migration to add the new columns:
+> ```bash
+> cd backend
+> alembic upgrade head
+> ```
+> This migration populates existing owner memberships with the `owner` role automatically.
 
 ### 3. Backend Setup
 
@@ -122,6 +129,20 @@ The API will be available at `http://localhost:8000`.
 
 Interactive API documentation (Swagger UI) is available at:
 `http://localhost:8000/docs`
+
+## Project-based collaboration
+
+- **Create project**: `POST /api/v1/projects/` (admin + manager). Automatically adds the creator as the project owner.
+- **List projects**: `GET /api/v1/projects/?archived=true|false&search=` (admins see everything, others only what they belong to).
+- **Project members**: `POST /api/v1/projects/{id}/members`, `PATCH /api/v1/projects/{id}/members/{user_id}`, `DELETE /api/v1/projects/{id}/members/{user_id}` with owner/manager validation.
+- **Archive/restore**: `POST /api/v1/projects/{id}/archive` and `/restore` plus `PUT /projects/{id}` to edit metadata.
+- **Project tasks**: `POST /api/v1/projects/{id}/tasks` and `GET /api/v1/projects/{id}/tasks?status=&assignee_id=` enforce creator/assignee membership.
+- **User search**: `GET /api/v1/users/search/?q=` powers the Add Member modal with lightweight user summaries.
+
+On the frontend you now have:
+
+- `projects.php` – searchable/filterable grid of all projects the user can see, including a modal for admin/manager project creation.
+- `project_detail.php?id=123` – owner-aware header, overview metrics, role-aware member management, Trello-style task board with status/assignee filters, Add Task modal, Add Member modal, and Project Settings modal (rename/color/archive toggles).
 
 ## Contributing
 

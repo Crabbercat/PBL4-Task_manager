@@ -6,6 +6,8 @@ if (document.readyState === "interactive" || document.readyState === "complete")
 }
 
 let authScriptsInitialized = false;
+let cachedUserProfile = null;
+let userProfilePromise = null;
 
 function initAuthScripts() {
     if (authScriptsInitialized) {
@@ -59,6 +61,7 @@ async function handleLogin(event) {
 
         messageEl.textContent = "Login successful! Redirecting...";
         messageEl.classList.add("success");
+        window.showToast?.("Login successful", { type: "success" });
 
         setTimeout(() => {
             window.location.href = "dashboard.php";
@@ -67,6 +70,7 @@ async function handleLogin(event) {
     } catch (error) {
         messageEl.textContent = error.message;
         messageEl.classList.add("error");
+        window.showToast?.("Login failed", { type: "error", description: error.message });
     } finally {
         setLoading(btn, false, "Sign in");
     }
@@ -118,6 +122,7 @@ async function handleRegister(event) {
 
         messageEl.textContent = "Account created! Redirecting to login...";
         messageEl.classList.add("success");
+        window.showToast?.("Account created", { type: "success" });
 
         setTimeout(() => {
             window.location.href = "login.php";
@@ -126,6 +131,7 @@ async function handleRegister(event) {
     } catch (error) {
         messageEl.textContent = error.message;
         messageEl.classList.add("error");
+        window.showToast?.("Registration failed", { type: "error", description: error.message });
     } finally {
         setLoading(btn, false, "Create account");
     }
@@ -143,10 +149,12 @@ function setLoading(btn, isLoading, text) {
 
 function logout() {
     localStorage.removeItem("tm_access_token");
+    cachedUserProfile = null;
+    userProfilePromise = null;
     window.location.href = "login.php";
 }
 
-async function hydrateSidebarIdentity(prefetchedUser) {
+function hydrateSidebarIdentity() {
     const avatarEl = document.getElementById("sidebarAvatar");
     const nameEl = document.getElementById("sidebarDisplayName");
     const roleEl = document.getElementById("sidebarRole");
@@ -155,41 +163,16 @@ async function hydrateSidebarIdentity(prefetchedUser) {
         return;
     }
 
-    if (prefetchedUser) {
-        applySidebarIdentity(prefetchedUser, avatarEl, nameEl, roleEl);
-        return;
-    }
-
-    const token = localStorage.getItem("tm_access_token");
-    if (!token) {
-        applySidebarFallback(avatarEl, nameEl, roleEl);
-        return;
-    }
-
     nameEl.textContent = "Loading...";
     roleEl.textContent = "";
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/me/`, {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
+    fetchCurrentUser()
+        .then(user => {
+            applySidebarIdentity(user, avatarEl, nameEl, roleEl);
+        })
+        .catch(() => {
+            applySidebarFallback(avatarEl, nameEl, roleEl);
         });
-
-        if (response.status === 401) {
-            logout();
-            return;
-        }
-
-        if (!response.ok) {
-            throw new Error("Unable to fetch profile");
-        }
-
-        const user = await response.json();
-        applySidebarIdentity(user, avatarEl, nameEl, roleEl);
-    } catch (error) {
-        applySidebarFallback(avatarEl, nameEl, roleEl);
-    }
 }
 
 function applySidebarIdentity(user, avatarEl, nameEl, roleEl) {
@@ -311,3 +294,30 @@ async function authedFetch(path, options = {}) {
 
     return response;
 }
+
+async function fetchCurrentUser(forceRefresh = false) {
+    if (!forceRefresh && cachedUserProfile) {
+        return cachedUserProfile;
+    }
+    if (!forceRefresh && userProfilePromise) {
+        return userProfilePromise;
+    }
+
+    userProfilePromise = (async () => {
+        const response = await authedFetch("/me/");
+        if (!response.ok) {
+            throw new Error("Unable to fetch profile");
+        }
+        return response.json();
+    })();
+
+    try {
+        const profile = await userProfilePromise;
+        cachedUserProfile = profile;
+        return profile;
+    } finally {
+        userProfilePromise = null;
+    }
+}
+
+window.fetchCurrentUser = fetchCurrentUser;

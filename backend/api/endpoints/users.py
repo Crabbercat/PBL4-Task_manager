@@ -1,11 +1,12 @@
 from datetime import datetime
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
-from ..models.user import UserCreate, UserProfile, UserResponse, UserUpdate, UserRoleUpdate
+from ..models.user import UserCreate, UserProfile, UserResponse, UserUpdate, UserRoleUpdate, UserSummary
 from ...core.security import get_password_hash, create_access_token, get_user_by_token, verify_password
 from ...db.database import get_db
 from ...db.db_structure import User, Team
@@ -96,6 +97,30 @@ def list_users(db: Session = Depends(get_db), username: str = Depends(get_user_b
     if current_user.username != "admin":
         raise HTTPException(status_code=403, detail="Admin privileges required")
     return db.query(User).all()
+
+
+@router.get("/users/search/", response_model=List[UserSummary])
+def search_users(
+    query: Optional[str] = Query(None, alias="q"),
+    limit: int = Query(10, ge=1, le=25),
+    db: Session = Depends(get_db),
+    username: str = Depends(get_user_by_token),
+):
+    requester = db.query(User).filter(User.username == username).first()
+    if requester is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    stmt = db.query(User).filter(User.is_active.is_(True))
+    if query:
+        like_value = f"%{query.lower()}%"
+        stmt = stmt.filter(
+            or_(
+                func.lower(User.username).like(like_value),
+                func.lower(User.display_name).like(like_value),
+            )
+        )
+
+    return stmt.order_by(User.display_name.asc()).limit(limit).all()
 
 
 @router.patch("/users/{user_id}/role/", response_model=UserResponse)

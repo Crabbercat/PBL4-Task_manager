@@ -1,6 +1,6 @@
 <?php $bodyClass = 'body-dashboard'; include 'includes/header.php'; ?>
 
-<div class="dashboard-shell">
+<div class="dashboard-shell board-hidden">
     <?php include 'includes/sidebar.php'; ?>
 
     <main class="dashboard-main">
@@ -11,7 +11,7 @@
                 <p>Keep blockers visible and cycle time tight.</p>
             </div>
             <div class="dashboard-actions">
-                <button class="ghost-button" type="button">New project</button>
+                <button class="ghost-button" type="button" id="goToProjectsBtn">New project</button>
                 <button class="primary-button primary-button--icon" type="button" id="openTaskModal">
                     <span>+</span> Add task
                 </button>
@@ -19,6 +19,11 @@
         </header>
 
         <section class="stat-grid" aria-label="Team overview">
+            <article class="stat-card">
+                <p>Total projects</p>
+                <strong id="totalProjectsStat">0</strong>
+                <span>You are collaborating on</span>
+            </article>
             <article class="stat-card">
                 <p>Total tasks</p>
                 <strong id="totalTasksStat">0</strong>
@@ -41,7 +46,11 @@
             </article>
         </section>
 
-        <section class="kanban" aria-label="Task board">
+        <section class="board-toolbar">
+            <button class="ghost-button" type="button" id="toggleTaskVisibilityBtn" data-state="hidden">Show tasks</button>
+        </section>
+
+        <section class="kanban" aria-label="Task board" id="dashboardBoard">
             <article class="kanban-column" aria-live="polite">
                 <header>
                     <div>

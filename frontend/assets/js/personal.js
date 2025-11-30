@@ -177,12 +177,21 @@ function renderPersonalTaskCard(task) {
             </div>
             <div class="personal-task-card__actions">
                 <button class="ghost-button" type="button" data-edit-task="${task.id}">Edit</button>
+                <button class="ghost-button ghost-button--danger" type="button" data-delete-task="${task.id}">Delete</button>
             </div>
         </article>
     `;
 }
 
 function handleBoardClick(event) {
+    const deleteBtn = event.target.closest('[data-delete-task]');
+    if (deleteBtn) {
+        const taskId = Number(deleteBtn.getAttribute('data-delete-task'));
+        if (Number.isFinite(taskId)) {
+            deletePersonalTask(taskId, deleteBtn);
+        }
+        return;
+    }
     const editBtn = event.target.closest('[data-edit-task]');
     if (!editBtn) {
         return;
@@ -191,6 +200,36 @@ function handleBoardClick(event) {
     const task = findPersonalTask(taskId);
     if (task) {
         openPersonalTaskModal(task);
+    }
+}
+
+async function deletePersonalTask(taskId, button) {
+    const confirmed = await window.showConfirmDialog({
+        title: "Delete personal task",
+        message: "Delete this task? This action cannot be undone.",
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        tone: "danger"
+    });
+    if (!confirmed) {
+        return;
+    }
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = "Deleting…";
+    try {
+        const response = await authedFetch(`/tasks/${taskId}`, { method: "DELETE" });
+        if (!response.ok) {
+            const detail = await response.json().catch(() => ({}));
+            throw new Error(detail?.detail || "Unable to delete task");
+        }
+        notify?.("Task deleted", { type: "success" });
+        await fetchPersonalTasks();
+    } catch (error) {
+        notify?.("Delete failed", { type: "error", description: error.message });
+    } finally {
+        button.disabled = false;
+        button.textContent = original;
     }
 }
 
@@ -223,7 +262,7 @@ async function toggleTaskCompletion(taskId, completed, checkbox) {
         }
         await fetchPersonalTasks();
     } catch (error) {
-        alert(error.message || "Unable to update task");
+        window.showToast?.("Unable to update task", { type: "error", description: error.message });
         checkbox.checked = !completed;
     } finally {
         checkbox.disabled = false;
@@ -436,6 +475,10 @@ function setPersonalFormMessage(text, state) {
     el.className = "helper-text";
     if (state) {
         el.classList.add(state);
+        if (state === "success" || state === "error") {
+            const resolved = text || (state === "success" ? "Action completed" : "Something went wrong");
+            window.showToast?.(resolved, { type: state });
+        }
     }
 }
 

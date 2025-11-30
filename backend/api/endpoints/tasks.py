@@ -1,13 +1,15 @@
 from datetime import datetime
-from typing import List, Optional, Set
+from collections import defaultdict
+from typing import Dict, List, Optional, Set
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from sqlalchemy.orm import Session, joinedload, selectinload
 
+from ..models.project import ProjectRole
 from ..models.task import TaskCreate, TaskResponse, TaskStatus, TaskUpdate
 from ...core.security import get_user_by_token
 from ...db.database import get_db
-from ...db.db_structure import Project, Task, User
+from ...db.db_structure import Project, ProjectMember, Task, User
 
 router = APIRouter()
 
@@ -28,42 +30,51 @@ def _get_user_or_404(db: Session, username: str) -> User:
 
 
 def _get_project_or_404(db: Session, project_id: int) -> Project:
-    project = db.query(Project).options(joinedload(Project.members)).filter(Project.id == project_id).first()
+    project = (
+        db.query(Project)
+        .options(selectinload(Project.project_members).joinedload(ProjectMember.user))
+        .filter(Project.id == project_id)
+        .first()
+    )
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
 
+def _get_project_membership(project: Project, user_id: int) -> Optional[ProjectMember]:
+    return next((member for member in project.project_members if member.user_id == user_id), None)
+
+
+def _project_role_for_user(project: Project, user_id: int) -> Optional[ProjectRole]:
+    if project.owner_id == user_id:
+        return ProjectRole.OWNER
+    membership = _get_project_membership(project, user_id)
+    if membership is None:
+        return None
+    try:
+        return ProjectRole(membership.role)
+    except ValueError:
+        return None
+
+
 def _ensure_project_member(user: User, project: Project):
+    if user.role == "admin":
+        return
     member_ids = {member.id for member in project.members}
     member_ids.add(project.owner_id)
     if user.id not in member_ids:
         raise HTTPException(status_code=403, detail="You are not a member of this project")
 
 
-def _project_ids_for_user(user: User) -> List[int]:
+def _project_ids_for_user(db: Session, user: User) -> List[int]:
+    if user.role == "admin":
+        return [pid for (pid,) in db.query(Project.id).all()]
     ids = {project.id for project in user.projects}
     ids.update(project.id for project in user.owned_projects)
     return list(ids)
 
 
-@router.websocket("/ws/tasks/{client_id}")
-async def websocket_endpoint(client_id: int, websocket: WebSocket):
-    await websocket.accept()
-    active_connections.add(websocket)
-    try:
-        while True:
-            message = await websocket.receive_text()
-            for connection in active_connections:
-                await connection.send_text(f"Client {client_id} says: {message}")
-    except WebSocketDisconnect:
-        active_connections.remove(websocket)
-
-
-@router.post("/tasks/", response_model=TaskResponse, status_code=201)
-def create_task(task: TaskCreate, db: Session = Depends(get_db), username: str = Depends(get_user_by_token)):
-    current_user = _get_user_or_404(db, username)
-
+def _create_task_record(current_user: User, task: TaskCreate, db: Session) -> Task:
     if task.is_personal:
         if task.project_id is not None:
             raise HTTPException(status_code=400, detail="Personal tasks cannot belong to a project")
@@ -81,6 +92,8 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db), username: str =
             raise HTTPException(status_code=400, detail="Project is required for team tasks")
         project = _get_project_or_404(db, task.project_id)
         _ensure_project_member(current_user, project)
+        if project.archived:
+            raise HTTPException(status_code=400, detail="Archived projects cannot accept new tasks")
 
         if task.assignee_id:
             assignee = db.query(User).filter(User.id == task.assignee_id).first()
@@ -105,6 +118,37 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db), username: str =
     return db_task
 
 
+@router.websocket("/ws/tasks/{client_id}")
+async def websocket_endpoint(client_id: int, websocket: WebSocket):
+    await websocket.accept()
+    active_connections.add(websocket)
+    try:
+        while True:
+            message = await websocket.receive_text()
+            for connection in active_connections:
+                await connection.send_text(f"Client {client_id} says: {message}")
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
+
+
+@router.post("/tasks/", response_model=TaskResponse, status_code=201)
+def create_task(task: TaskCreate, db: Session = Depends(get_db), username: str = Depends(get_user_by_token)):
+    current_user = _get_user_or_404(db, username)
+    return _create_task_record(current_user, task, db)
+
+
+@router.post("/projects/{project_id}/tasks", response_model=TaskResponse, status_code=201)
+def create_project_task(
+    project_id: int,
+    task: TaskCreate,
+    db: Session = Depends(get_db),
+    username: str = Depends(get_user_by_token),
+):
+    current_user = _get_user_or_404(db, username)
+    payload = task.model_copy(update={"project_id": project_id, "is_personal": False})
+    return _create_task_record(current_user, payload, db)
+
+
 @router.get("/tasks/", response_model=List[TaskResponse])
 def read_tasks(
     skip: int = 0,
@@ -114,7 +158,7 @@ def read_tasks(
     username: str = Depends(get_user_by_token)
 ):
     current_user = _get_user_or_404(db, username)
-    project_ids = _project_ids_for_user(current_user)
+    project_ids = _project_ids_for_user(db, current_user)
     
     # If a specific project is requested, strictly filter by it
     if project_id:
@@ -134,27 +178,63 @@ def read_tasks(
     # Otherwise, return all tasks visible to the user:
     # 1. Tasks in projects they are a member of
     # 2. Personal tasks they created
-    
-    # We need to handle the case where project_ids is empty
-    project_filter = Task.project_id.in_(project_ids) if project_ids else False
-    
+
     from sqlalchemy import or_, and_
-    
+
+    visibility_filters = [and_(Task.is_personal == True, Task.creator_id == current_user.id)]
+    if project_ids:
+        visibility_filters.append(Task.project_id.in_(project_ids))
+
     tasks = (
         db.query(Task)
         .options(joinedload(Task.project), joinedload(Task.assignee), joinedload(Task.creator))
-        .filter(
-            or_(
-                project_filter,
-                and_(Task.is_personal == True, Task.creator_id == current_user.id)
-            )
-        )
+        .filter(or_(*visibility_filters))
         .order_by(Task.due_date.is_(None), Task.due_date.asc())
         .offset(skip)
         .limit(limit)
         .all()
     )
     return tasks
+
+
+@router.get("/projects/{project_id}/tasks", response_model=Dict[str, List[TaskResponse]])
+def read_project_tasks(
+    project_id: int,
+    status_filter: Optional[TaskStatus] = Query(None, alias="status"),
+    assignee_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    username: str = Depends(get_user_by_token),
+):
+    current_user = _get_user_or_404(db, username)
+    project = _get_project_or_404(db, project_id)
+    _ensure_project_member(current_user, project)
+
+    query = (
+        db.query(Task)
+        .options(joinedload(Task.project), joinedload(Task.assignee), joinedload(Task.creator))
+        .filter(Task.project_id == project_id)
+    )
+
+    if status_filter:
+        query = query.filter(Task.status == status_filter)
+
+    if assignee_id is not None:
+        membership = next((member for member in project.members if member.id == assignee_id), None)
+        if membership is None and assignee_id != project.owner_id:
+            raise HTTPException(status_code=400, detail="Assignee is not part of this project")
+        query = query.filter(Task.assignee_id == assignee_id)
+
+    tasks = query.order_by(Task.due_date.is_(None), Task.due_date.asc()).all()
+
+    grouped: Dict[str, List[Task]] = defaultdict(list)
+    for task in tasks:
+        grouped[task.status].append(task)
+
+    return {
+        TaskStatus.TO_DO.value: grouped.get(TaskStatus.TO_DO.value, []),
+        TaskStatus.IN_PROGRESS.value: grouped.get(TaskStatus.IN_PROGRESS.value, []),
+        TaskStatus.DONE.value: grouped.get(TaskStatus.DONE.value, []),
+    }
 
 
 @router.get("/tasks/personal/", response_model=List[TaskResponse])
@@ -215,13 +295,27 @@ def update_task(
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    raw_update = task_update.dict(exclude_unset=True)
+    requested_fields = set(raw_update.keys())
+    update_data = raw_update.copy()
+
     if db_task.is_personal:
         if db_task.creator_id != current_user.id:
             raise HTTPException(status_code=403, detail="You cannot modify this personal task")
     else:
         _ensure_project_member(current_user, db_task.project)
-
-    update_data = task_update.dict(exclude_unset=True)
+        if current_user.role != "admin":
+            role = _project_role_for_user(db_task.project, current_user.id)
+            is_creator = db_task.creator_id == current_user.id
+            is_manager = role in {ProjectRole.MANAGER, ProjectRole.OWNER}
+            if not (is_creator or is_manager):
+                allowed = {"status", "completed"}
+                disallowed = requested_fields - allowed
+                if disallowed:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Only the task creator or project managers can edit this task. Members may only update its status."
+                    )
     update_data.pop("end_date", None)
     completed_flag = update_data.pop("completed", None)
     effective_due_date = update_data.get("due_date", db_task.due_date)
@@ -302,8 +396,10 @@ def delete_task(task_id: int, db: Session = Depends(get_db), username: str = Dep
             raise HTTPException(status_code=403, detail="Only the creator can delete this personal task")
     else:
         _ensure_project_member(current_user, task.project)
-        if current_user.id not in {task.project.owner_id, task.creator_id}:
-            raise HTTPException(status_code=403, detail="Only the project owner or task creator can delete this task")
+        if current_user.role != "admin":
+            role = _project_role_for_user(task.project, current_user.id)
+            if role not in {ProjectRole.MANAGER, ProjectRole.OWNER}:
+                raise HTTPException(status_code=403, detail="Only project managers or admins can delete this task")
     db.delete(task)
     db.commit()
     return task
