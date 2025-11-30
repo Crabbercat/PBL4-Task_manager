@@ -1,157 +1,234 @@
-# PBL4 Task Manager
+# TaskOS · Real-Time Task Manager
 
-A comprehensive Task Management system featuring a robust FastAPI backend and a dynamic PHP/Vanilla JavaScript frontend. This application allows users to manage tasks, collaborate in teams, and track progress with a modern, responsive user interface.
+> A collaborative workspace that pairs a FastAPI backend with a PHP/vanilla JS dashboard so teams can plan, execute, and audit projects in real time.
 
-## Features
+## Table of contents
 
--   **User Authentication**: Secure registration and login system using JWT (JSON Web Tokens).
--   **Task Management**: Full CRUD capabilities for tasks (Create, Read, Update, Delete).
--   **Team Collaboration**: Create teams, invite members, and manage roles (Admin, Manager, Member).
--   **Project Collaboration 2.0**: Create multi-member projects with owner/manager/member roles, membership management, project archiving, and Kanban-style task boards.
--   **Dashboard**: Interactive dashboard with task statistics and quick actions.
--   **Responsive Design**: Modern UI with dark/light mode support.
+1. [Overview](#overview)
+2. [Architecture at a glance](#architecture-at-a-glance)
+3. [Feature highlights](#feature-highlights)
+4. [Project structure](#project-structure)
+5. [Data & timezone rules](#data--timezone-rules)
+6. [Prerequisites](#prerequisites)
+7. [Setup](#setup)
+8. [Configuration](#configuration)
+9. [Running locally](#running-locally)
+10. [Sample data & migrations](#sample-data--migrations)
+11. [API quick reference](#api-quick-reference)
+12. [Logging & monitoring](#logging--monitoring)
+13. [Testing](#testing)
+14. [Contributing](#contributing)
+15. [License](#license)
 
-## Tech Stack
+## Overview
 
--   **Backend**: Python 3.10+, FastAPI, SQLAlchemy, MySQL.
--   **Frontend**: PHP, JavaScript (Vanilla), HTML, CSS.
--   **Database**: MySQL.
+TaskOS is a PBL4 capstone that combines a FastAPI microservice, a MySQL schema, and a PHP-based UI to orchestrate projects, teams, and personal work. JWT-secured APIs expose project/role aware task workflows, while the frontend renders dashboards, project boards, and personal queues with real-time feedback.
 
-## Project Structure
+## Architecture at a glance
+
+- **Backend**: Python 3.10+, FastAPI, SQLAlchemy ORM, Alembic migrations, PyMySQL connector.
+- **Frontend**: PHP templates plus modular ES6 scripts (`frontend/assets/js/*.js`) and a single CSS system with dark/light theming.
+- **Database**: MySQL schema (`task_management.sql`) with teams, users, projects, tasks, and membership tables.
+- **Real-time**: WebSocket endpoint (`/api/v1/ws/tasks/{client_id}`) broadcasts board updates to connected clients.
+- **Auth & security**: OAuth2 password flow with JWT, salted password hashing (Passlib + bcrypt), per-project roles (owner/manager/member), and admin-only actions.
+- **Observability**: Request log (`info.log`) plus an activity log that captures every authenticated API call.
+- **Quality**: Pytest suites cover core endpoints and ORM models (`tests/`).
+
+## Feature highlights
+
+### Platform capabilities
+- Account lifecycle: registration, login, profile editing, password rotation, JWT refresh on username changes.
+- Role-aware routing: global roles (admin, manager, user) plus per-project roles enforced server-side.
+- Team directory: admin-managed teams with CRUD + bulk member assignment APIs.
+- GMT+7 scheduling: all task timestamps are normalized to Vietnam time to keep reporting consistent.
+
+### Project & task operations
+- Personal vs collaborative tasks with status, priority, tags, parent/subtasks, and due-date validations.
+- Kanban-ready grouping endpoints (`/projects/{id}/tasks`) powering board columns and filters.
+- Permission gating that limits members to status toggles while managers/owners can edit full payloads.
+- Automatic audit fields (creator/assignee, created/updated timestamps, completion tracking) and archived project protection.
+
+### Frontend experience
+- `dashboard.php`: personal Kanban with metrics (total/in-progress/due-soon) and quick-create modal.
+- `personal_tasks.php`: dedicated board for private work with full CRUD modals.
+- `settings.php`: profile, password, and admin tool surface powered by `settings.js`.
+- `login.php` / `register.php`: onboarding forms, toasts, and token bootstrapping handled by `auth.js`.
+- Shared utilities in `frontend/assets/js` (`app.js`, `auth.js`, `personal.js`, `settings.js`, `theme.js`) plus responsive CSS with keyboard-friendly modals.
+
+### Ops & tooling
+- Alembic migrations maintain schema parity for existing databases.
+- Dedicated logging middleware captures request metadata and user identities.
+- Ready-to-import SQL seed file with sample teams, admin/manager/member accounts, and multiple demo projects/tasks.
+
+## Project structure
 
 ```
 PBL4-Task_manager/
-├── backend/            # FastAPI application logic
-│   ├── api/            # API endpoints (users, tasks, teams, projects)
-│   ├── core/           # Configuration and security settings
-│   ├── db/             # Database models and connection logic
-│   └── alembic/        # Database migrations (if applicable)
-├── frontend/           # PHP & JS Frontend
-│   ├── assets/         # CSS, JS, Images
-│   ├── includes/       # Reusable PHP components (header, sidebar)
-│   └── *.php           # Main application pages
-├── task_management.sql # Database schema import file
-├── main.py             # Backend entry point
-├── requirements.txt    # Python dependencies
-└── README.md           # Project documentation
+├── backend/
+│   ├── api/                  # FastAPI routers, Pydantic models, middleware
+│   │   ├── endpoints/        # projects.py, tasks.py, users.py, teams.py
+│   │   ├── middleware/       # logging middleware & loggers
+│   │   └── models/           # Request/response schemas
+│   ├── core/                 # Settings + security helpers
+│   ├── db/                   # SQLAlchemy session + models + alembic env
+│   └── alembic/              # Migration scripts
+├── frontend/
+│   ├── *.php                 # Login, register, dashboard, projects, settings
+│   ├── assets/css/style.css  # Single source of truth for styling
+│   ├── assets/js/            # Dashboard/project/personal/settings logic
+│   └── includes/             # header.php, sidebar.php, footer.php
+├── tests/                    # Pytest suites for endpoints and models
+├── task_management.sql       # Bootstrap schema + sample data
+├── main.py                   # FastAPI entrypoint
+├── requirements.txt          # Python dependencies
+└── README.md
 ```
+
+## Data & timezone rules
+
+- All date/time fields are normalized to **GMT+7 (Vietnam)** inside `backend/api/endpoints/tasks.py` to keep UI and DB aligned.
+- Personal tasks ignore `project_id` and automatically bind to the creator; collaborative tasks validate membership and parent-child relationships.
+- Soft constraints: archived projects are read-only for task creation, due dates cannot sit behind completion timestamps, and status changes drive completion flags/end dates.
 
 ## Prerequisites
 
-Before running the application, ensure you have the following installed:
+- Python **3.10+**
+- MySQL Server (XAMPP, WAMP, Docker, or standalone installation)
+- PHP runtime / Apache or Nginx with PHP-FPM (XAMPP is the quickest option)
+- Git
 
--   **Python 3.10+**
--   **MySQL Server** (Recommended: XAMPP or a standalone MySQL installation)
--   **Web Server for PHP** (Recommended: Apache via XAMPP)
--   **Git**
+## Setup
 
-## Installation
-
-### 1. Clone the Repository
+### 1. Clone the repository
 
 ```bash
 git clone <repository-url>
 cd PBL4-Task_manager
 ```
 
-### 2. Database Setup
+### 2. Database (MySQL)
 
-1.  Start your MySQL server (e.g., via XAMPP Control Panel).
-2.  Import the database schema:
-    -   **Option A (CLI)**:
-        ```bash
-        mysql -u root -p < task_management.sql
-        ```
-    -   **Option B (phpMyAdmin)**:
-        -   Open phpMyAdmin (usually `http://localhost/phpmyadmin`).
-        -   Import `task_management.sql`.
-    -   *Note: The SQL file creates a database named `task_manager` and now includes project-level roles (`project_member.role`) plus the `project.archived` flag.*
+1. Start MySQL (`mysqld`, XAMPP, Docker, etc.).
+2. Import `task_management.sql` via phpMyAdmin or CLI:
+   ```bash
+   mysql -u root -p < task_management.sql
+   ```
+   The script creates the `task_manager` schema, default teams, admin/manager/member accounts, seeded personal tasks, and four collaborative sample projects.
+3. Existing databases: run Alembic to apply the latest migrations.
+   ```bash
+   cd backend
+   alembic upgrade head
+   cd ..
+   ```
 
-> **Existing databases:** run the latest Alembic migration to add the new columns:
-> ```bash
-> cd backend
-> alembic upgrade head
-> ```
-> This migration populates existing owner memberships with the `owner` role automatically.
+### 3. Backend (FastAPI)
 
-### 3. Backend Setup
+1. Create and activate a virtual environment:
+   ```bash
+   python -m venv .venv
+   # Windows
+   .venv\Scripts\activate
+   # macOS / Linux
+   source .venv/bin/activate
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Create a `.env` file at the project root (see [Configuration](#configuration)).
+4. Optional: run `alembic revision --autogenerate` to keep schema changes under version control.
 
-1.  Navigate to the project root.
-2.  Create a virtual environment:
-    ```bash
-    python -m venv .venv
-    # Windows
-    .venv\Scripts\activate
-    # Linux/macOS
-    source .venv/bin/activate
-    ```
-3.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-4.  Configure Environment Variables:
-    -   Create a `.env` file in the root directory.
-    -   Add your database credentials and security keys:
-        ```env
-        DATABASE_URL=mysql+pymysql://root:@localhost:3306/task_manager
-        SECRET_KEY=your_super_secret_key_here
-        SALT=your_salt_here
-        ALGORITHM=HS256
-        ACCESS_TOKEN_EXPIRE_MINUTES=30
-        ```
-    -   *Note: If you have a password for your root user, add it after the colon in `DATABASE_URL` (e.g., `root:password@...`).*
+### 4. Frontend (PHP)
 
-### 4. Frontend Setup
+1. Copy or symlink the `frontend` directory into your web root (e.g., `C:\xampp\htdocs\taskos`).
+2. Update Apache/Nginx hostnames if you prefer custom domains; ensure they match the CORS whitelist inside `main.py`.
+3. Alternatively, run PHP’s built-in server for quick tests:
+   ```bash
+   php -S 127.0.0.1:9000 -t frontend
+   ```
+4. Set `API_BASE_URL` inside your JS modules if hosting the backend on a non-default port.
 
-1.  **Using XAMPP**:
-    -   Copy the `frontend` folder (or the entire project) to your `htdocs` directory (e.g., `C:\xampp\htdocs\task_management`).
-    -   Ensure the path matches your web server configuration.
+## Configuration
 
-## Usage
+Create `.env` with the following keys:
 
-### Running the Backend
+| Variable | Description | Example |
+| --- | --- | --- |
+| `DATABASE_URL` | SQLAlchemy connection string | `mysql+pymysql://root:password@localhost:3306/task_manager` |
+| `SECRET_KEY` | JWT signing key | `super_secret_key_123` |
+| `SALT` | Extra salt appended before hashing passwords | `s0m3_pepper` |
+| `ALGORITHM` | JWT algorithm | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token TTL | `30` |
+| `FRONTEND_ORIGINS` | (Optional) comma-separated list of allowed origins | `http://localhost,http://127.0.0.1:9000` |
+| `BACKEND_HOST` / `BACKEND_PORT` | (Optional) uvicorn defaults | `0.0.0.0` / `8000` |
 
-From the project root directory (with your virtual environment activated):
+> Password hashing concatenates `password + SALT` before bcrypt hashing. Keep both `SECRET_KEY` and `SALT` private.
+
+## Running locally
+
+### Backend API
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API will be available at `http://localhost:8000`.
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
-### Running the Frontend
+### Frontend
 
-1.  Ensure your web server (Apache) is running.
-2.  Open your browser and navigate to the frontend URL.
-    -   Example: `http://localhost/task_management/frontend/index.php` (adjust based on your folder structure in `htdocs`).
+- Apache/XAMPP example: `http://localhost/taskos/login.php`
+- PHP built-in server example: `http://127.0.0.1:9000/login.php`
+- Tokens are stored in `localStorage` (`tm_access_token`) and attached to subsequent API calls.
 
-### API Documentation
+## Sample data & migrations
 
-Interactive API documentation (Swagger UI) is available at:
-`http://localhost:8000/docs`
+- `task_management.sql` seeds 10 teams, admin/manager/member accounts, personal tasks, and collaborative projects (e.g., **Customer Portal Rollout** with kanban-ready tasks and membership).
+- Alembic migrations live in `backend/alembic/versions/` and track changes such as role columns and timestamp additions.
+- Running migrations keeps existing installations aligned with the latest schema without re-importing data.
 
-## Project-based collaboration
+## API quick reference
 
-- **Create project**: `POST /api/v1/projects/` (admin + manager). Automatically adds the creator as the project owner.
-- **List projects**: `GET /api/v1/projects/?archived=true|false&search=` (admins see everything, others only what they belong to).
-- **Project members**: `POST /api/v1/projects/{id}/members`, `PATCH /api/v1/projects/{id}/members/{user_id}`, `DELETE /api/v1/projects/{id}/members/{user_id}` with owner/manager validation.
-- **Archive/restore**: `POST /api/v1/projects/{id}/archive` and `/restore` plus `PUT /projects/{id}` to edit metadata.
-- **Project tasks**: `POST /api/v1/projects/{id}/tasks` and `GET /api/v1/projects/{id}/tasks?status=&assignee_id=` enforce creator/assignee membership.
-- **User search**: `GET /api/v1/users/search/?q=` powers the Add Member modal with lightweight user summaries.
+| Endpoint | Method | Description | Auth |
+| --- | --- | --- | --- |
+| `/api/v1/register/` | POST | Create a new user account (optional team assignment) | No |
+| `/api/v1/login/` | POST | OAuth2 password flow, returns JWT + role | No |
+| `/api/v1/me/` | GET/PUT | Read or update the current user profile | Bearer |
+| `/api/v1/projects/` | GET/POST | List visible projects or create a new one (admin/manager) | Bearer |
+| `/api/v1/projects/{id}` | GET/PUT/DELETE | Fetch, update, or delete a project (owner/admin restrictions) | Bearer |
+| `/api/v1/projects/{id}/members` | POST/PATCH/DELETE | Manage project membership and roles | Bearer |
+| `/api/v1/projects/{id}/tasks` | GET/POST | Filter tasks by status/assignee or create project tasks | Bearer |
+| `/api/v1/tasks/` | GET/POST | List visible tasks or create personal/project tasks | Bearer |
+| `/api/v1/tasks/{id}` | GET/PUT/DELETE | Inspect or mutate a task with role-aware validation | Bearer |
+| `/api/v1/tasks/personal/` | GET | List personal tasks created by the requester | Bearer |
+| `/api/v1/users/search/` | GET | Lightweight search used by the Add Member modal | Bearer |
+| `/api/v1/teams/` | CRUD | Admin-only team management endpoints | Bearer |
+| `/api/v1/ws/tasks/{client_id}` | WebSocket | Broadcast channel for live task updates | Bearer |
 
-On the frontend you now have:
+## Logging & monitoring
 
-- `projects.php` – searchable/filterable grid of all projects the user can see, including a modal for admin/manager project creation.
-- `project_detail.php?id=123` – owner-aware header, overview metrics, role-aware member management, Trello-style task board with status/assignee filters, Add Task modal, Add Member modal, and Project Settings modal (rename/color/archive toggles).
+- **Request log (`info.log`)** captures incoming/outgoing HTTP metadata with execution time.
+- **Activity log (`activity.log`)** records every authenticated call with username (or `anonymous`), method, path, query parameters, status code, client IP, and duration.
+- Logs live in the project root by default; update the `FileHandler` paths in `backend/api/middleware/middleware.py` if you prefer a `logs/` directory.
+- Global exception handler (`main.py`) writes stack traces through the same logger, simplifying alerting.
+
+## Testing
+
+- Activate the virtual environment and run:
+  ```bash
+  pytest
+  ```
+- `tests/test_endpoints.py` spins up `TestClient` to cover auth → project → task happy paths.
+- `tests/test_models.py` validates Pydantic schemas and SQLAlchemy models against a live session.
+- Add environment-specific fixtures in `tests/conftest.py` when expanding coverage (e.g., mocking email or background jobs).
 
 ## Contributing
 
-1.  Fork the repository.
-2.  Create a feature branch (`git checkout -b feature/NewFeature`).
-3.  Commit your changes (`git commit -m 'Add some feature'`).
-4.  Push to the branch (`git push origin feature/NewFeature`).
-5.  Open a Pull Request.
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/my-feature`.
+3. Commit with clear messages and include tests when possible.
+4. Push and open a Pull Request describing the change and any migration/logging considerations.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License. See `LICENSE` for the full text.
