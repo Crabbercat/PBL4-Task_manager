@@ -1,0 +1,35 @@
+@startuml
+actor User as U
+participant Frontend as FE
+participant FastAPI as API
+database MySQL as DB
+
+activate U
+U -> FE: Nhấn "Create Project"
+
+activate FE
+FE -> API: Gửi POST /api/v1/projects
+
+activate API
+API -> API: Xác thực JWT + kiểm tra dữ liệu
+API -> DB: INSERT project + gán thành viên
+
+activate DB
+DB --> API: Ghi thành công / trả lỗi
+deactivate DB
+
+alt Lưu thành công
+    API --> FE: 201 + thông tin project
+    FE --> FE: Cập nhật bảng project
+    FE --> FE: Hiển thị giao diện project mới
+    activate FE
+    deactivate FE
+else Lỗi validation / DB
+    API --> FE: Response lỗi (400 / 500)
+    deactivate API
+    FE --> FE: Hiển thị thông báo lỗi
+end
+
+deactivate FE
+deactivate U
+@enduml

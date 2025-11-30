@@ -1,0 +1,26 @@
+@startuml
+|Người dùng|
+start
+
+:Chọn chức năng "Tạo Project";
+:Nhập thông tin Project (tên, mô tả ...);
+
+|Hệ thống|
+:Nhận request POST /projects/create;
+:Kiểm tra quyền (Admin/Manager);
+
+if (Có quyền?) then (Có)
+    :Lưu Project vào MySQL;
+    :Sinh project_id;
+    :Trả về JSON chứa project_id;
+else (Không)
+    :Trả về mã lỗi 403 - Không có quyền;
+    :Hiển thị thông báo lỗi;
+endif
+
+
+:Chuyển sang trang chi tiết Project (dựa trên project_id);
+|Người dùng|
+:Tiếp tục thao tác với project vừa tạo;
+stop
+@enduml

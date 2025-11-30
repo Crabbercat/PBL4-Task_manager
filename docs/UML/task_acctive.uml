@@ -1,0 +1,22 @@
+@startuml
+|Người dùng|
+start
+
+:Chọn Project muốn thao tác;
+:Nhập thông tin Task (tên, mô tả, hạn, priority...);
+
+|Hệ thống|
+:Nhận request POST /projects/{id}/tasks;
+:Kiểm tra người tạo có thuộc Project không;
+
+if (Là thành viên?) then (Có)
+    :Lưu Task vào bảng TASK (MySQL);
+    :Sinh task_id;
+    :Trả về dữ liệu task đã tạo;
+    :Hiển thị Task mới trên UI;
+else (Không)
+    :Trả lỗi "Không thuộc Project";
+    :Hiển thị thông báo lỗi;
+endif
+stop
+@enduml

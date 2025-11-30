@@ -1,0 +1,38 @@
+@startuml
+actor User as U
+participant Frontend as FE
+participant FastAPI as API
+database MySQL as DB
+
+activate U
+U -> FE: Nhấn "Create Task"
+
+activate FE
+FE -> API: POST /api/v1/tasks (payload)
+
+activate API
+API -> API: Xác thực JWT + kiểm tra quyền
+API -> DB: Kiểm tra user thuộc project?
+
+activate DB
+DB --> API: Kết quả kiểm tra
+deactivate DB
+
+alt User hợp lệ & là thành viên
+    
+    API -> DB: INSERT task + liên kết project
+    activate DB
+    DB --> API: Trả task mới
+    deactivate DB
+    API --> FE: 201 + task info
+    FE --> FE: Cập nhật board
+else Không hợp lệ / không là thành viên
+    API --> FE: JSON lỗi (403 / 404)
+    deactivate API
+    FE --> FE: Hiển thị thông báo lỗi
+end
+
+deactivate API
+deactivate FE
+deactivate U
+@enduml
