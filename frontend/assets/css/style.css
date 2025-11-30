@@ -1430,6 +1430,10 @@ select option {
     color: var(--text-base);
     margin-bottom: 8px;
     backdrop-filter: blur(4px);
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 [data-theme="light"] .personal-task-card__status {
@@ -1524,6 +1528,11 @@ select option {
 
 .task-complete-toggle input {
     display: none;
+}
+
+.task-complete-toggle input:disabled + span {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .task-complete-toggle span {
@@ -1694,12 +1703,12 @@ select option {
     display: flex;
     justify-content: space-between;
     gap: 16px;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .task-card__labels {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     flex-wrap: wrap;
     justify-content: flex-end;
@@ -1725,6 +1734,19 @@ select option {
     display: flex;
     justify-content: space-between;
     gap: 12px;
+    align-items: flex-start;
+}
+
+.task-header h3 {
+    flex: 1 1 auto;
+    margin: 0;
+    min-width: 0;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.task-header .status-badge {
+    flex-shrink: 0;
 }
 
 .priority-chip {
@@ -1769,10 +1791,16 @@ select option {
 }
 
 .status-badge {
+    display: inline-flex;
+    align-items: center;
     padding: 4px 10px;
     border-radius: 999px;
     font-size: 0.78rem;
     text-transform: capitalize;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .status-todo {

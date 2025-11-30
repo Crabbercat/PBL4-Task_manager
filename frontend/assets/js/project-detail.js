@@ -88,7 +88,8 @@ function initProjectDetailPage() {
             deleteProjectBtn: document.getElementById("deleteProjectBtn")
         },
             pendingEditTaskId: null,
-            taskFormBaseline: null
+            taskFormBaseline: null,
+            taskFormLocked: false
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -336,6 +337,7 @@ function renderTaskCard(task) {
     const canEdit = canEditTask(task);
     const canDelete = canDeleteProjectTask();
     const statusControl = renderTaskStatusControl(task);
+    const canToggleCompletion = canUpdateTaskStatus(task);
     const tagsMarkup = renderTaskTags(task.tags);
     const actionButtons = [];
     if (canEdit) {
@@ -352,7 +354,7 @@ function renderTaskCard(task) {
         <article class="personal-task-card project-task-card" data-task-id="${task.id}">
             <div class="personal-task-card__main">
                 <label class="task-complete-toggle">
-                    <input type="checkbox" data-task-complete="${task.id}" ${task.completed ? "checked" : ""} aria-label="Mark task complete" />
+                    <input type="checkbox" data-task-complete="${task.id}" ${task.completed ? "checked" : ""} aria-label="Mark task complete" ${canToggleCompletion ? "" : "disabled"} />
                     <span></span>
                 </label>
                 <div>
@@ -397,10 +399,10 @@ function renderTaskTags(rawTags) {
 
 function renderTaskStatusControl(task) {
     if (!canUpdateTaskStatus(task)) {
-        return `<p class="personal-task-card__status">${humanize(task.status)}</p>`;
+        return `<p class="personal-task-card__status">${formatStatusLabel(task.status)}</p>`;
     }
     const options = PROJECT_TASK_SECTIONS
-        .map(section => `<option value="${section.key}" ${section.key === task.status ? "selected" : ""}>${section.label}</option>`)
+        .map(section => `<option value="${section.key}" ${section.key === task.status ? "selected" : ""}>${formatStatusLabel(section.key)}</option>`)
         .join("");
     return `
         <div class="personal-task-card__status personal-task-card__status--select">
@@ -637,6 +639,7 @@ function openProjectTaskModal(task = null) {
     taskModalTitle.textContent = isEdit ? "Edit task" : "Create task";
     taskSubmitBtn.textContent = isEdit ? "Save changes" : "Create task";
     taskMessage.textContent = "";
+    taskMessage.classList.remove("error", "success");
 
     taskForm.title.value = task?.title || "";
     taskForm.description.value = task?.description || "";
@@ -647,8 +650,18 @@ function openProjectTaskModal(task = null) {
 
     rememberProjectTaskBaseline(task);
 
+    const canEdit = !isEdit || canEditTask(task);
+    setProjectTaskFormLock(!canEdit);
+    if (!canEdit && taskMessage) {
+        taskMessage.hidden = false;
+        taskMessage.textContent = "Only the task creator or project managers can edit this task. Members may only update its status.";
+        taskMessage.classList.add("error");
+    }
+
     taskModal.removeAttribute("hidden");
-    taskForm.title.focus();
+    if (canEdit) {
+        taskForm.title.focus();
+    }
 }
 
 function closeProjectTaskModal() {
@@ -661,6 +674,7 @@ function closeProjectTaskModal() {
     taskForm.dataset.mode = "create";
     taskForm.dataset.taskId = "";
     projectDetailState.taskFormBaseline = null;
+    setProjectTaskFormLock(false);
     if (taskMessage) {
         taskMessage.textContent = "";
         taskMessage.classList.remove("error", "success");
@@ -1015,6 +1029,14 @@ async function handleProjectTaskFormSubmit(event) {
     event.preventDefault();
     const { taskForm, taskMessage, taskSubmitBtn } = projectDetailState.refs;
     const mode = taskForm.dataset.mode || "create";
+    if (projectDetailState.taskFormLocked) {
+        if (taskMessage) {
+            taskMessage.hidden = false;
+            taskMessage.textContent = "Only the task creator or project managers can edit this task. Members may only update its status.";
+            taskMessage.classList.add("error");
+        }
+        return;
+    }
     const payload = buildTaskPayload(taskForm);
     if (!payload) {
         return;
@@ -1232,6 +1254,27 @@ function toggleFormMessage(element, message, hide = false, type = "") {
     }
 }
 
+function setProjectTaskFormLock(isLocked) {
+    const { taskForm, taskSubmitBtn } = projectDetailState.refs;
+    projectDetailState.taskFormLocked = Boolean(isLocked);
+    if (!taskForm) {
+        return;
+    }
+    const fields = taskForm.querySelectorAll("input:not([type='hidden']), textarea, select");
+    fields.forEach(field => {
+        field.disabled = Boolean(isLocked);
+    });
+    if (taskSubmitBtn) {
+        taskSubmitBtn.disabled = Boolean(isLocked);
+        if (isLocked) {
+            taskSubmitBtn.textContent = "Permission required";
+        } else {
+            const mode = taskForm.dataset.mode || "create";
+            taskSubmitBtn.textContent = mode === "edit" ? "Save changes" : "Create task";
+        }
+    }
+}
+
 function formatDisplayName(user) {
     if (!user) {
         return "Unknown";
@@ -1322,6 +1365,11 @@ function humanize(value) {
         return "";
     }
     return value.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function formatStatusLabel(value) {
+    const label = humanize(value);
+    return label.replace(/\s+/g, "\u00A0");
 }
 
 function safeIsoString(value) {

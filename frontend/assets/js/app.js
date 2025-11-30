@@ -688,7 +688,7 @@ function createTaskCard(task) {
                 <div class="task-header">
                     <h3>${safeTitle}</h3>
                     <span class="status-badge ${statusClass}">
-                        ${humanize(task.status)}
+                        ${formatStatusLabel(task.status)}
                     </span>
                 </div>
                 <div class="task-card__labels">
@@ -712,7 +712,7 @@ function renderStatusSelectOptions(currentStatus) {
     const normalized = (currentStatus || "").toLowerCase();
     const statuses = ["to_do", "in_progress", "done"];
     return statuses
-        .map(status => `<option value="${status}" ${status === normalized ? "selected" : ""}>${humanize(status)}</option>`)
+        .map(status => `<option value="${status}" ${status === normalized ? "selected" : ""}>${formatStatusLabel(status)}</option>`)
         .join("");
 }
 
@@ -729,6 +729,11 @@ function humanize(value) {
         .split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+}
+
+function formatStatusLabel(value) {
+    const label = humanize(value);
+    return label.replace(/\s+/g, "\u00A0");
 }
 
 function formatDate(dateString) {

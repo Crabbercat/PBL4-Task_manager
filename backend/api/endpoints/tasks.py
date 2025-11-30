@@ -337,6 +337,11 @@ def update_task(
             is_creator = db_task.creator_id == current_user.id
             is_manager = role in {ProjectRole.MANAGER, ProjectRole.OWNER}
             if not (is_creator or is_manager):
+                if db_task.assignee_id != current_user.id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Only project managers or the assigned member can update this task."
+                    )
                 allowed = {"status", "completed"}
                 disallowed = requested_fields - allowed
                 if disallowed:

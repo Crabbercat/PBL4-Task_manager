@@ -164,7 +164,7 @@ function renderPersonalTaskCard(task) {
                     <span></span>
                 </label>
                 <div>
-                    <p class="personal-task-card__status">${humanize(task.status)}</p>
+                    <p class="personal-task-card__status">${formatStatusLabel(task.status)}</p>
                     <h3>${safeTitle}</h3>
                     <p class="helper-text">${safeDesc}</p>
                 </div>
@@ -603,6 +603,11 @@ function humanize(value) {
         .split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+}
+
+function formatStatusLabel(value) {
+    const label = humanize(value);
+    return label.replace(/\s+/g, "\u00A0");
 }
 
 function formatDate(dateString) {
