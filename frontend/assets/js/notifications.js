@@ -34,9 +34,29 @@ const DIALOG_CLOSE_DELAY = 180;
         stack.appendChild(toast);
 
         let isDismissed = false;
-        const timer = setTimeout(() => dismissToast(), duration);
+        let remaining = Math.max(duration, 0);
+        let expireAt = Date.now() + remaining;
+        let timer = setTimeout(() => dismissToast(), remaining);
 
-        toast.addEventListener("mouseenter", () => clearTimeout(timer));
+        toast.addEventListener("mouseenter", () => {
+            if (!timer) {
+                return;
+            }
+            clearTimeout(timer);
+            timer = null;
+            remaining = Math.max(expireAt - Date.now(), 0);
+        });
+        toast.addEventListener("mouseleave", () => {
+            if (isDismissed || timer) {
+                return;
+            }
+            if (remaining <= 0) {
+                dismissToast();
+                return;
+            }
+            expireAt = Date.now() + remaining;
+            timer = setTimeout(() => dismissToast(), remaining);
+        });
         toast.querySelector(".toast__close")?.addEventListener("click", () => {
             clearTimeout(timer);
             dismissToast();
@@ -47,6 +67,10 @@ const DIALOG_CLOSE_DELAY = 180;
                 return;
             }
             isDismissed = true;
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
             toast.classList.add("toast--exit");
             setTimeout(() => toast.remove(), 200);
         }

@@ -86,10 +86,18 @@ function initProjectDetailPage() {
             projectSettingsSubmitBtn: document.getElementById("projectSettingsSubmitBtn"),
             archiveProjectBtn: document.getElementById("archiveProjectBtn"),
             deleteProjectBtn: document.getElementById("deleteProjectBtn")
-        }
+        },
+        pendingEditTaskId: null
     };
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedEditTaskId = Number(urlParams.get("edit_task_id"));
+    if (Number.isFinite(requestedEditTaskId) && requestedEditTaskId > 0) {
+        projectDetailState.pendingEditTaskId = requestedEditTaskId;
+    }
+
     setupTabNavigation();
+    setProjectTab(projectDetailState.pendingEditTaskId ? "tasks" : "overview");
     setupTaskFilters();
     setupTaskBoardInteractions();
     setupTaskModal();
@@ -160,6 +168,7 @@ async function fetchProjectTasks() {
     projectDetailState.tasks = normalizeGroupedTasks(payload);
     projectDetailState.flatTasks = flattenTaskGroups(projectDetailState.tasks);
     renderTaskBoard();
+    maybeOpenPendingTaskEdit();
 }
 
 function normalizeGroupedTasks(data) {
@@ -200,15 +209,12 @@ function renderProjectOverview(project) {
     overviewStats.progress.textContent = "0";
         if (taskModalTrigger) {
             const isArchived = Boolean(project.archived);
-            taskModalTrigger.disabled = isArchived;
+            taskModalTrigger.dataset.archived = isArchived ? "true" : "false";
             if (isArchived) {
                 taskModalTrigger.setAttribute("aria-disabled", "true");
-            } else {
-                taskModalTrigger.removeAttribute("aria-disabled");
-            }
-            if (isArchived) {
                 taskModalTrigger.title = "Archived projects cannot accept new tasks";
             } else {
+                taskModalTrigger.removeAttribute("aria-disabled");
                 taskModalTrigger.removeAttribute("title");
             }
         }
@@ -536,16 +542,25 @@ function handleTaskError(error) {
 
 function setupTabNavigation() {
     const tabs = document.querySelectorAll(".project-tab");
-    const panels = document.querySelectorAll(".project-tab-panel");
     tabs.forEach(tab => {
         tab.addEventListener("click", () => {
-            tabs.forEach(btn => btn.classList.remove("active"));
-            tab.classList.add("active");
-            panels.forEach(panel => {
-                panel.classList.toggle("active", panel.id === `projectTab${tab.dataset.tab?.charAt(0).toUpperCase()}${tab.dataset.tab?.slice(1)}`);
-            });
+            const targetTab = tab.dataset.tab || "overview";
+            setProjectTab(targetTab);
         });
     });
+}
+
+function setProjectTab(tabName = "overview") {
+    const normalized = tabName.toLowerCase();
+    document.querySelectorAll(".project-tab").forEach(tab => {
+        const tabKey = (tab.dataset.tab || "overview").toLowerCase();
+        tab.classList.toggle("active", tabKey === normalized);
+    });
+    document.querySelectorAll(".project-tab-panel").forEach(panel => {
+        const panelKey = panel.id?.replace("projectTab", "").toLowerCase();
+        panel.classList.toggle("active", panelKey === normalized);
+    });
+    projectDetailState.activeTab = normalized;
 }
 
 function setupTaskModal() {
@@ -625,7 +640,7 @@ function openProjectTaskModal(task = null) {
     taskForm.title.value = task?.title || "";
     taskForm.description.value = task?.description || "";
     taskForm.priority.value = task?.priority || "medium";
-    taskForm.due_date.value = task?.due_date ? formatDateForInput(task.due_date) : "";
+    taskForm.due_date.value = task?.due_date ? formatDateTimeForInput(task.due_date) : "";
     taskForm.assignee_id.value = task?.assignee?.id || "";
     taskForm.tags.value = task?.tags || "";
 
@@ -813,7 +828,10 @@ async function removeMemberFromProject(userId, button) {
             throw new Error(payload?.detail || "Unable to remove member");
         }
         notify?.("Member removed", { type: "success" });
-        await fetchProjectOverview();
+        await Promise.all([
+            fetchProjectOverview(),
+            fetchProjectTasks()
+        ]);
     } catch (error) {
         notify?.("Remove member failed", { type: "error", description: error.message });
     } finally {
@@ -1175,7 +1193,7 @@ function formatDisplayDate(value, fallback = "—") {
     return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
-function formatDateForInput(value) {
+function formatDateTimeForInput(value) {
     if (!value) {
         return "";
     }
@@ -1183,7 +1201,43 @@ function formatDateForInput(value) {
     if (Number.isNaN(date.getTime())) {
         return "";
     }
-    return date.toISOString().slice(0, 10);
+    const tzAdjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return tzAdjusted.toISOString().slice(0, 16);
+}
+
+function maybeOpenPendingTaskEdit() {
+    const pendingId = projectDetailState?.pendingEditTaskId;
+    if (!pendingId) {
+        return;
+    }
+
+    const targetTask = projectDetailState.flatTasks.find(task => task.id === pendingId);
+    if (!targetTask) {
+        return;
+    }
+
+    projectDetailState.pendingEditTaskId = null;
+    clearPendingEditQueryParam();
+    setProjectTab("tasks");
+    openProjectTaskModal(targetTask);
+    requestAnimationFrame(() => {
+        const card = document.querySelector(`[data-task-id="${pendingId}"]`);
+        if (!card) {
+            return;
+        }
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.add("card-highlight-pulse");
+        setTimeout(() => card.classList.remove("card-highlight-pulse"), 3000);
+    });
+}
+
+function clearPendingEditQueryParam() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("edit_task_id")) {
+        return;
+    }
+    url.searchParams.delete("edit_task_id");
+    window.history.replaceState({}, "", url);
 }
 
 function setButtonLoadingState(button, isLoading, label) {

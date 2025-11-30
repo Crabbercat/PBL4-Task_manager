@@ -15,6 +15,7 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    username: Optional[str] = None
     email: Optional[EmailStr] = None
     display_name: Optional[str] = None
     team_id: Optional[int] = None
@@ -22,6 +23,11 @@ class UserUpdate(BaseModel):
 
 class UserRoleUpdate(BaseModel):
     role: str
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class UserResponse(BaseModel):
@@ -43,6 +49,7 @@ class UserProfile(UserResponse):
 
     created_at: datetime
     updated_at: datetime
+    access_token: Optional[str] = None
 
 
 class UserSummary(BaseModel):

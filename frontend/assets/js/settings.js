@@ -22,8 +22,16 @@ function initSettingsPage(token) {
     const adminMessage = document.getElementById("adminMessage");
     const teamSelect = document.getElementById("settingsTeam");
     const teamList = document.getElementById("teamList");
+    const usernameInput = document.getElementById("settingsUsername");
     const displayNameInput = document.getElementById("settingsDisplayName");
     const emailInput = document.getElementById("settingsEmail");
+    const passwordForm = document.getElementById("passwordForm");
+    const passwordMessage = document.getElementById("passwordMessage");
+    const passwordSubmitBtn = document.getElementById("passwordSubmitBtn");
+    const currentPasswordInput = document.getElementById("currentPassword");
+    const newPasswordInput = document.getElementById("newPassword");
+    const confirmPasswordInput = document.getElementById("confirmPassword");
+    const roleSearchInput = document.getElementById("roleSearchInput");
 
     const snapshotRefs = {
         name: document.getElementById("settingsSnapshotName"),
@@ -47,6 +55,7 @@ function initSettingsPage(token) {
     let cachedTeams = [];
     let profileBaseline = null;
     let allUsers = [];
+    let adminUsers = [];
     let selectedMemberIds = new Set();
 
     const teamsPromise = loadPublicTeams();
@@ -110,7 +119,8 @@ function initSettingsPage(token) {
         const term = filter.toLowerCase();
         const filtered = allUsers.filter(u =>
             u.username.toLowerCase().includes(term) ||
-            (u.display_name && u.display_name.toLowerCase().includes(term))
+            (u.display_name && u.display_name.toLowerCase().includes(term)) ||
+            (u.email && u.email.toLowerCase().includes(term))
         );
 
         if (filtered.length === 0) {
@@ -296,7 +306,7 @@ function initSettingsPage(token) {
             }
 
             const data = await response.json();
-            document.getElementById("settingsUsername").value = data.username || "";
+            if (usernameInput) usernameInput.value = data.username || "";
             if (displayNameInput) displayNameInput.value = data.display_name || "";
             if (emailInput) emailInput.value = data.email || "";
             if (teamSelect) {
@@ -324,10 +334,12 @@ function initSettingsPage(token) {
     }
 
     function getCurrentProfilePayload() {
+        const teamValue = teamSelect ? Number(teamSelect.value) : undefined;
         return {
+            username: (usernameInput?.value || "").trim(),
             email: (emailInput?.value || "").trim(),
             display_name: (displayNameInput?.value || "").trim(),
-            team_id: teamSelect ? Number(teamSelect.value) : undefined
+            team_id: Number.isNaN(teamValue) ? undefined : teamValue
         };
     }
 
@@ -349,6 +361,11 @@ function initSettingsPage(token) {
         }
 
         const payload = getCurrentProfilePayload();
+        if (!payload.username) {
+            setSettingsMessage(messageEl, "Username cannot be empty.", "error");
+            autoClearMessage(messageEl);
+            return;
+        }
         if (!hasProfileChanges(payload)) {
             setSettingsMessage(messageEl, "No changes to update.", "error");
             autoClearMessage(messageEl);
@@ -380,10 +397,14 @@ function initSettingsPage(token) {
 
             setSettingsMessage(messageEl, "Profile updated.", "success");
             autoClearMessage(messageEl, 3000, true);
+            if (usernameInput) usernameInput.value = data.username || payload.username;
             if (displayNameInput) displayNameInput.value = data.display_name || "";
             if (emailInput) emailInput.value = data.email || "";
             if (teamSelect) {
                 teamSelect.value = String(data.team_id ?? 0);
+            }
+            if (data.access_token) {
+                localStorage.setItem("tm_access_token", data.access_token);
             }
             profileBaseline = getCurrentProfilePayload();
             updateSnapshot({
@@ -418,7 +439,8 @@ function initSettingsPage(token) {
             }
 
             const users = await response.json();
-            renderUserRoleList(users);
+            adminUsers = Array.isArray(users) ? users : [];
+            applyRoleSearch();
         } catch (error) {
             userRoleList.innerHTML = `<p class="helper-text error">${error.message}</p>`;
         }
@@ -426,7 +448,9 @@ function initSettingsPage(token) {
 
     function renderUserRoleList(users) {
         if (!Array.isArray(users) || users.length === 0) {
-            userRoleList.innerHTML = '<p class="helper-text">No users found.</p>';
+            const hasSearch = Boolean(roleSearchInput?.value.trim());
+            const emptyText = hasSearch ? "No members match your search." : "No users found.";
+            userRoleList.innerHTML = `<p class="helper-text">${emptyText}</p>`;
             return;
         }
 
@@ -447,7 +471,7 @@ function initSettingsPage(token) {
 
             return `
                 <div class="role-row" data-user-id="${user.id}" data-current-role="${user.role}">
-                    <div>
+                    <div class="role-row__details">
                         <strong>${escapeHtml(user.display_name || user.username)}</strong>
                         <p class="helper-text">Username: ${escapeHtml(user.username)}</p>
                         <p class="helper-text">Email: ${escapeHtml(user.email)}</p>
@@ -455,11 +479,34 @@ function initSettingsPage(token) {
                     </div>
                     <div class="role-row__controls">
                         ${roleControls}
-                        <p class="helper-text role-row__message" data-role-message></p>
+                        <div class="role-row__message" data-role-message></div>
                     </div>
                 </div>
             `;
         }).join("");
+    }
+
+    roleSearchInput?.addEventListener("input", (event) => {
+        applyRoleSearch(event.target.value);
+    });
+
+    function applyRoleSearch(term = roleSearchInput?.value || "") {
+        const filtered = filterUsersByTerm(term);
+        renderUserRoleList(filtered);
+    }
+
+    function filterUsersByTerm(term = "") {
+        const normalized = term.trim().toLowerCase();
+        if (!normalized) {
+            return adminUsers;
+        }
+
+        return adminUsers.filter(user => {
+            const username = (user.username || "").toLowerCase();
+            const displayName = (user.display_name || "").toLowerCase();
+            const email = (user.email || "").toLowerCase();
+            return username.includes(normalized) || displayName.includes(normalized) || email.includes(normalized);
+        });
     }
 
     userRoleList?.addEventListener("click", event => {
@@ -482,10 +529,8 @@ function initSettingsPage(token) {
         const currentRole = row.getAttribute("data-current-role") || "";
         if (select.value === currentRole) {
             const rowMessage = row.querySelector("[data-role-message]");
-            if (rowMessage) {
-                setSettingsMessage(rowMessage, "No changes to update.", "error");
-                autoClearMessage(rowMessage);
-            }
+            setSettingsMessage(rowMessage, "No changes to update.", "error");
+            autoClearMessage(rowMessage);
             return;
         }
 
@@ -494,9 +539,7 @@ function initSettingsPage(token) {
 
     async function updateUserRole(userId, role, buttonEl, row) {
         const rowMessage = row?.querySelector("[data-role-message]");
-        if (rowMessage) {
-            setSettingsMessage(rowMessage, "", "");
-        }
+        setSettingsMessage(rowMessage, "", "");
         setLoading(buttonEl, true, "Updating...");
         try {
             const response = await fetch(`${API_BASE_URL}/users/${userId}/role/`, {
@@ -540,6 +583,7 @@ function initSettingsPage(token) {
     }
 
     profileForm?.addEventListener("submit", handleProfileSave);
+    passwordForm?.addEventListener("submit", handlePasswordChange);
     teamModalForm?.addEventListener("submit", handleTeamCreate);
     fetchProfile();
 
@@ -648,7 +692,6 @@ function initSettingsPage(token) {
                     <button type="button" class="ghost-button" data-team-action="save">Save</button>
                     <button type="button" class="ghost-button ghost-button--danger" data-team-action="delete">Delete</button>
                 </div>
-                <p class="helper-text team-row__message" data-team-message></p>
             </div>
         `).join("");
     }
@@ -689,16 +732,12 @@ function initSettingsPage(token) {
         };
 
         const rowMessage = row.querySelector("[data-team-message]");
-        if (rowMessage) {
-            setSettingsMessage(rowMessage, "", "");
-        }
+        setSettingsMessage(rowMessage, "", "");
         const initialName = decodeAttribute(row.getAttribute("data-initial-name"));
         const initialDescription = decodeAttribute(row.getAttribute("data-initial-description"));
         if (payload.name === initialName && payload.description === initialDescription) {
-            if (rowMessage) {
-                setSettingsMessage(rowMessage, "No changes to save.", "error");
-                autoClearMessage(rowMessage);
-            }
+            setSettingsMessage(rowMessage, "No changes to save.", "error");
+            autoClearMessage(rowMessage);
             return;
         }
         setLoading(button, true, "Saving...");
@@ -758,9 +797,7 @@ function initSettingsPage(token) {
 
         const row = button.closest(".team-row");
         const rowMessage = row?.querySelector("[data-team-message]");
-        if (rowMessage) {
-            setSettingsMessage(rowMessage, "", "");
-        }
+        setSettingsMessage(rowMessage, "", "");
         setLoading(button, true, "Deleting...");
         try {
             const response = await fetch(`${API_BASE_URL}/teams/${teamId}/`, {
@@ -834,6 +871,9 @@ function initSettingsPage(token) {
 
     function autoClearMessage(element, timeout = 3000, refreshAfter = false) {
         if (!element) {
+            if (refreshAfter) {
+                window.setTimeout(() => window.location.reload(), timeout);
+            }
             return;
         }
         const existing = Number(element.getAttribute("data-timer-id"));
@@ -862,20 +902,92 @@ function initSettingsPage(token) {
             teamRefreshTimer = null;
         }, delay);
     }
+
+    async function handlePasswordChange(event) {
+        event.preventDefault();
+        if (!passwordSubmitBtn) {
+            return;
+        }
+
+        const currentPassword = currentPasswordInput?.value || "";
+        const newPassword = newPasswordInput?.value || "";
+        const confirmPassword = confirmPasswordInput?.value || "";
+
+        if (!currentPassword || !newPassword) {
+            setSettingsMessage(passwordMessage, "All password fields are required.", "error");
+            autoClearMessage(passwordMessage);
+            return;
+        }
+
+        // if (newPassword.length < 8) {
+        //     setSettingsMessage(passwordMessage, "New password must be at least 8 characters.", "error");
+        //     autoClearMessage(passwordMessage);
+        //     return;
+        // }
+
+        if (newPassword !== confirmPassword) {
+            setSettingsMessage(passwordMessage, "Passwords do not match.", "error");
+            autoClearMessage(passwordMessage);
+            return;
+        }
+
+        setSettingsMessage(passwordMessage, "", "");
+        setLoading(passwordSubmitBtn, true, "Updating...");
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/me/password/`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword
+                })
+            });
+
+            if (response.status === 401) {
+                logout();
+                return;
+            }
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || "Unable to update password");
+            }
+
+            passwordForm?.reset();
+            setSettingsMessage(passwordMessage, data.detail || "Password updated.", "success");
+            autoClearMessage(passwordMessage, 4000, false);
+        } catch (error) {
+            setSettingsMessage(passwordMessage, error.message, "error");
+            autoClearMessage(passwordMessage);
+        } finally {
+            setLoading(passwordSubmitBtn, false, "Update password");
+        }
+    }
 }
 
 function setSettingsMessage(element, text, state) {
-    if (!element) {
+    if (element) {
+        element.textContent = text;
+        element.className = "helper-text";
+        if (state) {
+            element.classList.add(state);
+        }
+    }
+
+    if (!state) {
         return;
     }
-    element.textContent = text;
-    element.className = "helper-text";
-    if (state) {
-        element.classList.add(state);
-        if (state === "success" || state === "error") {
-            const resolved = text || (state === "success" ? "Action completed" : "Something went wrong");
-            window.showToast?.(resolved, { type: state });
-        }
+
+    const toastableStates = new Set(["success", "error"]);
+    if (toastableStates.has(state)) {
+        const resolved = text || (state === "success" ? "Action completed" : "Something went wrong");
+        window.showToast?.(resolved, { type: state });
+    } else if (text) {
+        window.showToast?.(text, { type: state });
     }
 }
 

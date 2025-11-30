@@ -674,6 +674,13 @@ function createTaskCard(task) {
     const priority = (task.priority || '').toUpperCase();
     const due = formatDate(task.due_date);
     const priorityLower = (task.priority || 'medium').toLowerCase();
+    const isPersonalTask = Boolean(task.is_personal);
+    const projectBadge = !isPersonalTask && (task.project || task.project_id)
+        ? `<span class="task-card__badge" title="${escapeHtml(task.project?.name || "Project task")}">Project task</span>`
+        : "";
+    const editHref = isPersonalTask
+        ? `personal_tasks.php?highlight_task_id=${task.id}`
+        : buildProjectTaskEditLink(task);
 
     return `
         <article class="task-card" data-task-id="${task.id}" data-priority="${priorityLower}">
@@ -684,7 +691,10 @@ function createTaskCard(task) {
                         ${humanize(task.status)}
                     </span>
                 </div>
-                <span class="priority-chip priority-chip--${priorityLower}">${priority || 'N/A'}</span>
+                <div class="task-card__labels">
+                    ${projectBadge}
+                    <span class="priority-chip priority-chip--${priorityLower}">${priority || 'N/A'}</span>
+                </div>
             </div>
             <p>${safeDescription}</p>
             <div class="task-meta">
@@ -692,7 +702,7 @@ function createTaskCard(task) {
                 <span>Start: ${formatDate(task.start_date)}</span>
             </div>
             <div class="task-card__actions">
-                <a href="personal_tasks.php?highlight_task_id=${task.id}" class="ghost-button">Edit details</a>
+                <a href="${editHref}" class="ghost-button">Edit details</a>
             </div>
         </article>
     `;
@@ -726,6 +736,18 @@ function formatDate(dateString) {
     const date = new Date(dateString);
     if (Number.isNaN(date.getTime())) return 'No date';
     return date.toLocaleDateString();
+}
+
+function buildProjectTaskEditLink(task) {
+    if (!task) {
+        return "projects.php";
+    }
+    const projectId = task.project?.id ?? task.project_id;
+    if (!projectId) {
+        return "projects.php";
+    }
+    const base = `project_detail.php?id=${projectId}`;
+    return task.id ? `${base}&edit_task_id=${task.id}` : base;
 }
 
 function isUpcoming(dateString) {

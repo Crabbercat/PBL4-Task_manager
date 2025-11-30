@@ -4,7 +4,7 @@ const PERSONAL_SECTIONS = [
     { key: "done", label: "Done", subtitle: "Shipped and validated" }
 ];
 
-const PERSONAL_EMPTY_STATE_HTML = "No personal tasks yet. Capture one from the <a class='personal-link' href='http://localhost/task_management/dashboard.php'>dashboard</a>.";
+const PERSONAL_EMPTY_STATE_HTML = "No personal tasks yet. Use the Add task button to capture your first one.";
 
 const PRIORITY_META = {
     low: {
@@ -42,9 +42,13 @@ function initPersonalTasks() {
         formMessage: document.getElementById("personalTaskFormMessage"),
         submitBtn: document.getElementById("personalTaskSubmit"),
         cancelBtn: document.getElementById("cancelPersonalTaskModal"),
+        triggerBtn: document.getElementById("openPersonalTaskModalTrigger"),
+        titleEl: document.getElementById("personalTaskModalTitle"),
+        subtitleEl: document.getElementById("personalTaskModalSubtitle"),
         tasks: [],
         editingTaskId: null,
-        originalPayload: null
+        originalPayload: null,
+        mode: "edit"
     };
 
     personalTaskState.board.addEventListener("click", handleBoardClick);
@@ -274,6 +278,7 @@ function setupPersonalModal() {
 
     personalTaskState.form?.addEventListener("submit", handlePersonalTaskFormSubmit);
     personalTaskState.cancelBtn?.addEventListener("click", closePersonalTaskModal);
+    personalTaskState.triggerBtn?.addEventListener("click", () => openPersonalTaskModal());
     personalTaskState.modal?.addEventListener("click", event => {
         if (event.target?.dataset?.modalDismiss !== undefined) {
             closePersonalTaskModal();
@@ -281,11 +286,61 @@ function setupPersonalModal() {
     });
 }
 
-function openPersonalTaskModal(task) {
-    personalTaskState.editingTaskId = task.id;
-    personalTaskState.modal?.removeAttribute("hidden");
-    fillPersonalTaskForm(task);
-    rememberPersonalTaskBaseline(task);
+function openPersonalTaskModal(task = null) {
+    if (!personalTaskState?.modal || !personalTaskState?.form) {
+        return;
+    }
+
+    const mode = task ? "edit" : "create";
+    setPersonalModalMode(mode);
+    personalTaskState.editingTaskId = task?.id || null;
+    personalTaskState.originalPayload = null;
+    personalTaskState.modal.removeAttribute("hidden");
+    setPersonalFormMessage("");
+
+    if (task) {
+        fillPersonalTaskForm(task);
+        rememberPersonalTaskBaseline(task);
+    } else {
+        personalTaskState.form.reset();
+        personalTaskState.form.priority.value = "medium";
+        personalTaskState.form.status.value = "to_do";
+        if (personalTaskState.form.start_date) {
+            personalTaskState.form.start_date.value = toLocalDateTime(new Date());
+        }
+        if (personalTaskState.form.due_date) {
+            personalTaskState.form.due_date.value = "";
+        }
+    }
+
+    personalTaskState.form.title.focus();
+}
+
+function setPersonalModalMode(mode) {
+    if (!personalTaskState) {
+        return;
+    }
+    personalTaskState.mode = mode;
+    if (personalTaskState.form) {
+        personalTaskState.form.dataset.mode = mode;
+    }
+
+    const titleKey = mode === "create" ? "createText" : "editText";
+    const titleText = personalTaskState.titleEl?.dataset?.[titleKey];
+    if (titleText && personalTaskState.titleEl) {
+        personalTaskState.titleEl.textContent = titleText;
+    }
+
+    const subtitleText = personalTaskState.subtitleEl?.dataset?.[titleKey];
+    if (subtitleText && personalTaskState.subtitleEl) {
+        personalTaskState.subtitleEl.textContent = subtitleText;
+    }
+
+    if (personalTaskState.submitBtn) {
+        const baseLabel = mode === "create" ? "Create task" : "Save changes";
+        personalTaskState.submitBtn.dataset.originalText = baseLabel;
+        personalTaskState.submitBtn.textContent = baseLabel;
+    }
 }
 
 function closePersonalTaskModal() {
@@ -293,6 +348,7 @@ function closePersonalTaskModal() {
     personalTaskState.originalPayload = null;
     personalTaskState.form?.reset();
     setPersonalFormMessage("");
+    setPersonalModalMode("edit");
     personalTaskState.modal?.setAttribute("hidden", "true");
 }
 
@@ -317,22 +373,25 @@ function toLocalDateTime(value) {
 
 async function handlePersonalTaskFormSubmit(event) {
     event.preventDefault();
-    if (!personalTaskState?.editingTaskId) {
-        setPersonalFormMessage("Unable to identify the task.", "error");
-        return;
-    }
-
+    const mode = personalTaskState?.mode || personalTaskState?.form?.dataset.mode || "edit";
     const payload = buildPersonalTaskPayload(event.target);
     if (!payload) {
         return;
     }
 
-    if (!hasPersonalTaskChanges(payload)) {
-        setPersonalFormMessage("Make a change before saving.", "error");
-        return;
+    if (mode === "edit") {
+        if (!personalTaskState?.editingTaskId) {
+            setPersonalFormMessage("Unable to identify the task.", "error");
+            return;
+        }
+        if (!hasPersonalTaskChanges(payload)) {
+            setPersonalFormMessage("Make a change before saving.", "error");
+            return;
+        }
+        await submitPersonalTaskUpdate(personalTaskState.editingTaskId, payload);
+    } else {
+        await submitPersonalTaskCreate(payload);
     }
-
-    await submitPersonalTaskUpdate(personalTaskState.editingTaskId, payload);
 }
 
 function buildPersonalTaskPayload(form) {
@@ -425,6 +484,40 @@ function safeIsoString(value) {
         return null;
     }
     return date.toISOString();
+}
+
+async function submitPersonalTaskCreate(payload) {
+    setPersonalFormMessage("", "");
+    setLoading(personalTaskState.submitBtn, true, "Creating...");
+
+    const body = {
+        ...payload,
+        is_personal: true,
+        status: payload.status || "to_do"
+    };
+    if (!body.start_date) {
+        body.start_date = new Date().toISOString();
+    }
+
+    try {
+        const response = await authedFetch("/tasks/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.detail || "Unable to create task");
+        }
+
+        setPersonalFormMessage("Task created!", "success");
+        await fetchPersonalTasks();
+        setTimeout(() => closePersonalTaskModal(), 600);
+    } catch (error) {
+        setPersonalFormMessage(error.message || "Unable to create task", "error");
+    } finally {
+        setLoading(personalTaskState.submitBtn, false);
+    }
 }
 
 async function submitPersonalTaskUpdate(taskId, payload) {
