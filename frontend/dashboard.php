@@ -10,12 +10,6 @@
                 <h1>My Tasks</h1>
                 <p>Keep blockers visible and cycle time tight.</p>
             </div>
-            <div class="dashboard-actions">
-                <button class="ghost-button" type="button" id="goToProjectsBtn">New project</button>
-                <button class="primary-button primary-button--icon" type="button" id="openTaskModal">
-                    <span>+</span> Add task
-                </button>
-            </div>
         </header>
 
         <section class="stat-grid" aria-label="Team overview">

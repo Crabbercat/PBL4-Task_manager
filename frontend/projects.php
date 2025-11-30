@@ -11,7 +11,6 @@
                 <p>Track every initiative your studio is running.</p>
             </div>
             <div class="dashboard-actions">
-                <button class="ghost-button" type="button" id="toggleArchivedFilter" data-mode="active">Show archived</button>
                 <button class="primary-button primary-button--icon" type="button" id="openProjectModal" data-requires-role="manager">
                     <span>+</span> Create project
                 </button>

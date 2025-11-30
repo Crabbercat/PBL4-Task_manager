@@ -10,22 +10,27 @@
                 <h1>Personal tasks</h1>
                 <p>Manage the work only you can see. Update, regroup, and mark things done.</p>
             </div>
+            <div class="dashboard-actions">
+                <button class="primary-button primary-button--icon" type="button" id="openPersonalTaskModalTrigger">
+                    <span>+</span> Add task
+                </button>
+            </div>
         </header>
 
         <section class="personal-board" id="personalTaskBoard" aria-live="polite"></section>
-        <p class="helper-text helper-text--center" id="personalTaskMessage" hidden>No personal tasks yet. Capture one from the <a class="personal-link" href="http://localhost/task_management/dashboard.php">dashboard</a>.</p>
+        <p class="helper-text helper-text--center" id="personalTaskMessage" hidden>No personal tasks yet. Use the Add task button to capture your first one.</p>
 
         <div class="modal" id="personalTaskModal" hidden>
             <div class="modal__overlay" data-modal-dismiss></div>
             <div class="modal__content">
                 <header class="modal__header">
                     <div>
-                        <p class="eyebrow">Update task</p>
-                        <h2>Edit personal task</h2>
-                        <p class="helper-text">Adjust the details, set deadlines, or switch status.</p>
+                        <p class="eyebrow">Personal task</p>
+                        <h2 id="personalTaskModalTitle" data-create-text="Create personal task" data-edit-text="Edit personal task">Edit personal task</h2>
+                        <p class="helper-text" id="personalTaskModalSubtitle" data-create-text="Personal tasks stay private to your account." data-edit-text="Adjust the details, set deadlines, or switch status.">Adjust the details, set deadlines, or switch status.</p>
                     </div>
                 </header>
-                <form class="modal__form" id="personalTaskForm">
+                <form class="modal__form" id="personalTaskForm" data-mode="edit">
                     <label>
                         <span>Title</span>
                         <input type="text" name="title" id="personalTaskTitle" required />

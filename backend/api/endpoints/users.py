@@ -6,7 +6,15 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
-from ..models.user import UserCreate, UserProfile, UserResponse, UserUpdate, UserRoleUpdate, UserSummary
+from ..models.user import (
+    PasswordChangeRequest,
+    UserCreate,
+    UserProfile,
+    UserResponse,
+    UserUpdate,
+    UserRoleUpdate,
+    UserSummary,
+)
 from ...core.security import get_password_hash, create_access_token, get_user_by_token, verify_password
 from ...db.database import get_db
 from ...db.db_structure import User, Team
@@ -66,6 +74,17 @@ def update_current_user(updates: UserUpdate, db: Session = Depends(get_db), user
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
+    username_changed = False
+
+    if updates.username is not None and updates.username.strip() != user.username:
+        new_username = updates.username.strip()
+        if not new_username:
+            raise HTTPException(status_code=400, detail="Username cannot be empty")
+        if db.query(User).filter(User.username == new_username).first():
+            raise HTTPException(status_code=400, detail="Username already in use")
+        user.username = new_username
+        username_changed = True
+
     if updates.email and updates.email != user.email:
         if db.query(User).filter(User.email == updates.email).first():
             raise HTTPException(status_code=400, detail="Email already in use")
@@ -86,7 +105,39 @@ def update_current_user(updates: UserUpdate, db: Session = Depends(get_db), user
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    if username_changed:
+        new_token = create_access_token({"sub": user.username, "user_id": user.id, "role": user.role})
+        setattr(user, "access_token", new_token)
+
     return user
+
+
+@router.post("/me/password/")
+def change_password(
+    passwords: PasswordChangeRequest,
+    db: Session = Depends(get_db),
+    username: str = Depends(get_user_by_token)
+):
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not verify_password(passwords.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    # if len(passwords.new_password) < 8:
+    #     raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+
+    if passwords.current_password == passwords.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from the current password")
+
+    user.hashed_password = get_password_hash(passwords.new_password)
+    user.updated_at = datetime.utcnow()
+    db.add(user)
+    db.commit()
+
+    return {"detail": "Password updated"}
 
 
 @router.get("/users/", response_model=List[UserResponse])

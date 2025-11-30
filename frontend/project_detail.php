@@ -139,7 +139,7 @@ include 'includes/header.php';
         <div class="modal__form">
             <label>
                 <span>Search</span>
-                <input type="search" id="memberSearchInput" placeholder="Search by name or username">
+                <input type="search" id="memberSearchInput" placeholder="Search by name, username, or email">
             </label>
             <ul class="member-search-results" id="memberSearchResults"></ul>
             <p class="helper-text" id="memberSearchMessage"></p>
@@ -173,8 +173,8 @@ include 'includes/header.php';
                     </select>
                 </label>
                 <label>
-                    <span>Due date</span>
-                    <input type="date" name="due_date">
+                    <span>Due date & time</span>
+                    <input type="datetime-local" name="due_date">
                 </label>
                 <label>
                     <span>Assignee</span>

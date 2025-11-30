@@ -28,10 +28,10 @@ function esc($value) {
                     <small>Current role</small>
                     <strong id="settingsSnapshotRole"><?php echo esc($sessionRole); ?></strong>
                 </div>
-                <div class="settings-pill">
-                    <small>Signed in as</small>
+                <!-- <div class="settings-pill">
+                    <small>Signed in as you.</small>
                     <strong><?php echo esc($sessionDisplayName); ?></strong>
-                </div>
+                </div> -->
             </div>
         </header>
 
@@ -49,7 +49,7 @@ function esc($value) {
                         <div class="settings-form__grid">
                             <label>
                                 <span>Username</span>
-                                <input type="text" id="settingsUsername" name="username" readonly />
+                                <input type="text" id="settingsUsername" name="username" placeholder="Pick a unique handle" />
                             </label>
 
                             <label>
@@ -66,19 +66,17 @@ function esc($value) {
 
                     <div class="settings-form__group">
                         <p class="settings-form__group-title">Workspace placement</p>
-                        <div class="settings-form__grid settings-form__grid--compact">
-                            <label>
+                        <div class="settings-team-row">
+                            <label class="settings-team-row__field">
                                 <span>Team / org</span>
                                 <select id="settingsTeam" name="team_id">
                                     <option value="0">No team</option>
                                 </select>
                             </label>
+                            <div class="settings-team-row__actions">
+                                <button type="submit" class="primary-button" id="settingsSaveBtn">Save changes</button>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="settings-form__actions">
-                        <p class="helper-text" id="settingsMessage" role="status"></p>
-                        <button type="submit" class="primary-button" id="settingsSaveBtn">Save changes</button>
                     </div>
                 </form>
             </section>
@@ -106,21 +104,49 @@ function esc($value) {
             </section>
         </div>
 
+        <section class="settings-card settings-card--security">
+            <header class="settings-card__header">
+                <p class="eyebrow">Security</p>
+                <h2>Password controls</h2>
+                <p>Keep your account protected by rotating your password regularly.</p>
+            </header>
+            <form id="passwordForm" class="settings-form settings-form--inline">
+                <div class="settings-form__grid">
+                    <label>
+                        <span>Current password</span>
+                        <input type="password" id="currentPassword" name="current_password" placeholder="Enter current password" required />
+                    </label>
+                    <label>
+                        <span>New password</span>
+                        <input type="password" id="newPassword" name="new_password" placeholder="Don't use your old password" required />
+                    </label>
+                    <label>
+                        <span>Confirm password</span>
+                        <input type="password" id="confirmPassword" name="confirm_password" placeholder="Repeat new password" required />
+                    </label>
+                    <button type="submit" class="primary-button" id="passwordSubmitBtn">Update password</button>
+                </div>
+            </form>
+        </section>
+
         <section id="adminPanel" class="settings-card" hidden>
             <header>
                 <p class="eyebrow">Admin tool</p>
                 <h1>Workspace controls</h1>
                 <p>Only the built-in admin account can manage contributor roles and maintain the team directory.</p>
             </header>
-            <p class="helper-text" id="adminMessage" role="status"></p>
-
             <div class="admin-tool__grid">
                 <article class="admin-tool__card">
                     <header>
                         <h2>Role management</h2>
                         <p>Review every workspace member and switch their contributor role.</p>
                     </header>
-                    <div id="userRoleList" class="settings-role-list"></div>
+                    <div class="settings-role-search">
+                        <input type="text" id="roleSearchInput" placeholder="Search by name, username, or email" aria-label="Search members" />
+                    </div>
+                    <div class="admin-scroll" aria-live="polite">
+                        <div id="userRoleList" class="settings-role-list"></div>
+                    </div>
                 </article>
 
                 <article class="admin-tool__card">
@@ -131,7 +157,9 @@ function esc($value) {
                     <div class="settings-card__actions">
                         <button type="button" class="primary-button" id="openTeamModalBtn">Create new team</button>
                     </div>
-                    <div id="teamList" class="team-list"></div>
+                    <div class="admin-scroll" aria-live="polite">
+                        <div id="teamList" class="team-list"></div>
+                    </div>
                 </article>
             </div>
         </section>
@@ -159,7 +187,7 @@ function esc($value) {
                     <div class="form-section">
                         <label><span>Add Members</span></label>
                         <div class="member-selector">
-                            <input type="text" id="memberSearch" placeholder="Search users..." class="member-search-input">
+                            <input type="text" id="memberSearch" placeholder="Search by name, username, or email" class="member-search-input">
                             <div id="memberList" class="member-list">
                                 <!-- Member items will be injected here -->
                             </div>
@@ -167,7 +195,6 @@ function esc($value) {
                         <p class="helper-text">Selected members: <span id="selectedMemberCount">0</span></p>
                     </div>
 
-                    <p class="helper-text" id="teamModalMessage"></p>
                     <div class="modal__actions">
                         <button class="ghost-button" type="button" data-modal-dismiss>Cancel</button>
                         <button class="primary-button" type="submit" id="teamModalSubmitBtn">Create Team</button>
