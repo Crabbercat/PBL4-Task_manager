@@ -3,25 +3,25 @@
 <main class="auth-layout" aria-labelledby="login-heading">
     <section class="auth-showcase">
         <p class="eyebrow">TaskOS Platform</p>
-        <h1>Bring clarity to every sprint.</h1>
+        <h1>Operational excellence for every team.</h1>
         <p class="subtext">
-            Track cross-functional initiatives, surface risks early, and keep everyone aligned on what ships next.
+            Orchestrate projects, surface blockers, and deliver predictable outcomes with a workspace designed for modern execution.
         </p>
 
         <ul class="selling-points">
-            <li>Live task insights &amp; workload heatmaps</li>
-            <li>Roles, permissions, and handoff timelines</li>
-            <li>Real-time updates across mobile &amp; web</li>
+            <li>Portfolio-level visibility with live health indicators</li>
+            <li>Granular access, approvals, and activity history</li>
+            <li>Secure-by-default experience across devices</li>
         </ul>
 
         <div class="mini-metrics">
             <article>
                 <span class="metric-value">+42%</span>
-                <span class="metric-label">Faster cycle time</span>
+                <span class="metric-label">Cycle time improvement</span>
             </article>
             <article>
                 <span class="metric-value">98%</span>
-                <span class="metric-label">Weekly adoption</span>
+                <span class="metric-label">Weekly engagement</span>
             </article>
         </div>
     </section>
@@ -30,7 +30,7 @@
         <header class="auth-card__header">
             <p class="eyebrow">Welcome back</p>
             <h2 id="login-heading">Sign in to continue</h2>
-            <p>Access your boards, answer blockers, and keep every milestone visible.</p>
+            <p>Authenticate to open your command center, respond to updates, and keep execution on schedule.</p>
         </header>
 
         <form id="loginForm" class="auth-form">

@@ -5,7 +5,7 @@
         <header class="auth-card__header">
             <p class="eyebrow">Create account</p>
             <h2 id="signup-heading">Join the workspace</h2>
-            <p>Spin up project hubs, invite teammates, and keep every milestone visible from day one.</p>
+            <p>Launch secure workspaces, invite stakeholders, and establish disciplined delivery rituals from day zero.</p>
         </header>
 
         <form id="registerForm" class="auth-form signup-form">
@@ -47,7 +47,7 @@
 
             <label class="checkbox">
                 <input type="checkbox" name="terms" required />
-                I agree to the collaborative workspace guidelines.
+                I agree to the TaskOS Terms and confirm I have read the privacy notice.
             </label>
 
             <button type="submit" class="primary-button" id="registerBtn">
@@ -66,28 +66,28 @@
         <p class="eyebrow">Workspace highlights</p>
         <h1>Launch aligned, deliver together.</h1>
         <p class="subtext">
-            Curate rituals, automate reminders, and keep every track owned with crystal-clear accountability.
+            Automate rituals, standardize approvals, and translate strategy into measurable progress across every track.
         </p>
 
         <div class="progress-list">
             <article>
                 <div>
-                    <h3>Team rituals</h3>
-                    <p>Custom ceremonies, async check-ins, and broadcast-ready changelogs.</p>
+                    <h3>Program oversight</h3>
+                    <p>Unified roadmap pulses, risk registers, and executive-ready summaries.</p>
                 </div>
-                <span>On track</span>
+                <span>Healthy</span>
             </article>
             <article>
                 <div>
-                    <h3>Approvals</h3>
-                    <p>One-click reviews keep design, eng, and ops fully aligned.</p>
+                    <h3>Control center</h3>
+                    <p>Role-aware approvals and audit trails ensure compliance without slowing teams.</p>
                 </div>
-                <span>3 pending</span>
+                <span>4 approvals</span>
             </article>
             <article>
                 <div>
-                    <h3>Velocity</h3>
-                    <p>Forecast sprints with confidence using automations and insights.</p>
+                    <h3>Delivery velocity</h3>
+                    <p>Predict sprint throughput with AI-powered insights and automated nudges.</p>
                 </div>
                 <span>+18%</span>
             </article>
