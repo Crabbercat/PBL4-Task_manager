@@ -52,7 +52,8 @@ async function handleLogin(event) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.detail || "Login failed");
+            const specificDetail = getLoginErrorMessage(data?.detail);
+            throw new Error(specificDetail);
         }
 
         // Save token
@@ -68,8 +69,25 @@ async function handleLogin(event) {
         messageEl.classList.add("error");
         window.showToast?.("Login failed", { type: "error", description: error.message });
     } finally {
-        setLoading(btn, false, "Signing in");
+        setLoading(btn, false, "Sign in");
     }
+}
+
+function getLoginErrorMessage(detail) {
+    if (!detail) {
+        return "Unable to sign in right now.";
+    }
+    const normalized = String(detail).toLowerCase();
+    if (normalized.includes("password")) {
+        return "Incorrect password. Double-check and try again.";
+    }
+    if (normalized.includes("username") || normalized.includes("user") || normalized.includes("not found")) {
+        return "Username not found. Please verify your account.";
+    }
+    if (normalized.includes("inactive") || normalized.includes("disabled")) {
+        return "Account is inactive. Contact an administrator.";
+    }
+    return detail;
 }
 
 async function handleRegister(event) {

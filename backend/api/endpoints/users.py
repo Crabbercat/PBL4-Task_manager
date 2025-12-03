@@ -52,8 +52,10 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login/")
 def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials", headers={"WWW-Authenticate": "Bearer"})
+    if not user:
+        raise HTTPException(status_code=401, detail="Username not found", headers={"WWW-Authenticate": "Bearer"})
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect password", headers={"WWW-Authenticate": "Bearer"})
     user.last_login = datetime.utcnow()
     db.commit()
     jwt_token = create_access_token({"sub": user.username, "user_id": user.id, "role": user.role})
