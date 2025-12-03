@@ -48,7 +48,7 @@
                             <p class="eyebrow">Personal tasks</p>
                             <h2>Private reminders</h2>
                         </div>
-                        <p class="helper-text">Live chart of your personal tasks.</p>
+                        <p class="helper-text">Live chart of personal tasks.</p>
                     </header>
                     <div class="chart-card__body">
                         <div class="chart-card__visual" role="img" aria-label="Personal task status chart">
@@ -71,7 +71,7 @@
                             <p class="eyebrow">Project tasks</p>
                             <h2>Assigned work</h2>
                         </div>
-                        <p class="helper-text">Live chart of your project tasks.</p>
+                        <p class="helper-text">Live chart of project tasks.</p>
                     </header>
                     <div class="chart-card__body">
                         <div class="chart-card__visual" role="img" aria-label="Project task status chart">

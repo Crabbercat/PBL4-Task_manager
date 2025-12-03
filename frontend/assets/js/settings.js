@@ -367,7 +367,7 @@ function initSettingsPage(token) {
             return;
         }
         if (!hasProfileChanges(payload)) {
-            setSettingsMessage(messageEl, "No changes to update.", "error");
+            window.showToast?.("No changes to update.", { type: "error" });
             autoClearMessage(messageEl);
             return;
         }
@@ -528,9 +528,7 @@ function initSettingsPage(token) {
 
         const currentRole = row.getAttribute("data-current-role") || "";
         if (select.value === currentRole) {
-            const rowMessage = row.querySelector("[data-role-message]");
-            setSettingsMessage(rowMessage, "No changes to update.", "error");
-            autoClearMessage(rowMessage);
+            window.showToast?.("No changes to update.", { type: "error" });
             return;
         }
 
@@ -538,8 +536,6 @@ function initSettingsPage(token) {
     });
 
     async function updateUserRole(userId, role, buttonEl, row) {
-        const rowMessage = row?.querySelector("[data-role-message]");
-        setSettingsMessage(rowMessage, "", "");
         setLoading(buttonEl, true, "Updating...");
         try {
             const response = await fetch(`${API_BASE_URL}/users/${userId}/role/`, {
@@ -561,22 +557,12 @@ function initSettingsPage(token) {
                 throw new Error(data.detail || "Unable to update role");
             }
 
-            const successText = `${data.display_name || data.username} updated to ${data.role}.`;
-            if (rowMessage) {
-                setSettingsMessage(rowMessage, successText, "success");
-                autoClearMessage(rowMessage, 3000, true);
-            } else {
-                showAdminMessage(successText, "success");
-                autoClearMessage(adminMessage || messageEl, 3000, true);
-            }
+            const humanizedRole = humanizeRole(data.role) || data.role;
+            const successText = `${data.display_name || data.username} updated to ${humanizedRole}.`;
+            window.showToast?.(successText, { type: "success" });
             row?.setAttribute("data-current-role", data.role);
         } catch (error) {
-            if (rowMessage) {
-                setSettingsMessage(rowMessage, error.message, "error");
-                autoClearMessage(rowMessage);
-            } else {
-                showAdminMessage(error.message, "error");
-            }
+            window.showToast?.(error.message || "Unable to update role", { type: "error" });
         } finally {
             setLoading(buttonEl, false, "Update");
         }
@@ -926,7 +912,7 @@ function initSettingsPage(token) {
         // }
 
         if (newPassword !== confirmPassword) {
-            setSettingsMessage(passwordMessage, "Passwords do not match.", "error");
+            setSettingsMessage(passwordMessage, "New password do not match.", "error");
             autoClearMessage(passwordMessage);
             return;
         }

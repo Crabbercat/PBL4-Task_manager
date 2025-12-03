@@ -79,7 +79,7 @@ function renderProjectGrid() {
 
     if (!projectsState.projects.length) {
         grid.innerHTML = "";
-        setElementState(emptyState, false, "No projects match your filters.");
+        setElementState(emptyState, false, getEmptyProjectsMessage());
         return;
     }
 
@@ -120,6 +120,16 @@ function renderProjectGrid() {
 function setProjectEmptyState(message) {
     const emptyState = document.getElementById("projectEmptyState");
     setElementState(emptyState, false, message);
+}
+
+function getEmptyProjectsMessage() {
+    if (projectsState.filter === "all" && !projectsState.query && projectsState.userRole === "user") {
+        return "No project found. Wait for the admin or a manager to add you in.";
+    }
+    if (projectsState.query) {
+        return `No projects found for "${projectsState.query}".`;
+    }
+    return "No projects match your filters.";
 }
 
 function setElementState(element, hidden, text = "") {

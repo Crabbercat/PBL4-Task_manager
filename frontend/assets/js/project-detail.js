@@ -22,6 +22,48 @@ const PROJECT_PRIORITY_META = {
     }
 };
 
+const PROJECT_OVERVIEW_CHART_LABELS = typeof CHART_LABELS !== "undefined"
+    ? CHART_LABELS
+    : ["To do", "In progress", "Done"];
+const PROJECT_OVERVIEW_CHART_COLORS = typeof CHART_COLORS !== "undefined"
+    ? CHART_COLORS
+    : ["#fbbf24", "#38bdf8", "#22c55e"];
+const PROJECT_OVERVIEW_PLUGIN_ID = typeof DOUGHNUT_VALUE_PLUGIN_ID !== "undefined"
+    ? DOUGHNUT_VALUE_PLUGIN_ID
+    : "projectOverviewValueLabels";
+
+function getProjectChartTextColor() {
+    if (typeof getDoughnutLabelColor === "function") {
+        return getDoughnutLabelColor();
+    }
+    try {
+        const styles = window.getComputedStyle(document.documentElement);
+        const value = styles.getPropertyValue("--text-base");
+        return value?.trim() || "#0f172a";
+    } catch (error) {
+        return "#0f172a";
+    }
+}
+
+function applyProjectOverviewPluginTheme(chartInstance) {
+    const pluginConfig = chartInstance?.options?.plugins?.[PROJECT_OVERVIEW_PLUGIN_ID];
+    if (!pluginConfig) {
+        return;
+    }
+    const color = getProjectChartTextColor();
+    pluginConfig.color = color;
+    pluginConfig.totalColor = color;
+}
+
+function refreshProjectOverviewChartTheme() {
+    const chartInstance = projectDetailState?.refs?.overviewChart?.instance;
+    if (!chartInstance) {
+        return;
+    }
+    applyProjectOverviewPluginTheme(chartInstance);
+    chartInstance.update();
+}
+
 let projectDetailState = null;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -30,12 +72,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     initProjectDetailPage();
 });
+if (typeof window.subscribeToThemeChanges !== "function") {
+    window.subscribeToThemeChanges = function subscribeToThemeChanges(callback) {
+        if (typeof callback !== "function") {
+            return;
+        }
+        document.addEventListener("themechange", callback);
+        if (typeof MutationObserver === "undefined" || !document.documentElement) {
+            return;
+        }
+        const observer = new MutationObserver(mutations => {
+            const themeChanged = mutations.some(mutation => mutation.type === "attributes" && mutation.attributeName === "data-theme");
+            if (themeChanged) {
+                callback();
+            }
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    };
+}
+
+window.subscribeToThemeChanges?.(refreshProjectOverviewChartTheme);
 
 function initProjectDetailPage() {
     const shell = document.querySelector(".dashboard-shell[data-project-id]");
     const projectId = Number(shell?.dataset?.projectId);
     if (!projectId) {
         return;
+    }
+
+    if (typeof registerDashboardChartPlugin === "function") {
+        registerDashboardChartPlugin();
     }
 
     projectDetailState = {
@@ -85,7 +151,8 @@ function initProjectDetailPage() {
             projectSettingsMessage: document.getElementById("projectSettingsMessage"),
             projectSettingsSubmitBtn: document.getElementById("projectSettingsSubmitBtn"),
             archiveProjectBtn: document.getElementById("archiveProjectBtn"),
-            deleteProjectBtn: document.getElementById("deleteProjectBtn")
+            deleteProjectBtn: document.getElementById("deleteProjectBtn"),
+            overviewChart: createProjectOverviewChartRefs()
         },
             pendingEditTaskId: null,
             taskFormBaseline: null,
@@ -309,6 +376,7 @@ function renderTaskBoard() {
     overviewStats.total.textContent = String(totalTasks);
     overviewStats.progress.textContent = String(projectDetailState.tasks.in_progress.length);
     overviewStats.done.textContent = String(projectDetailState.tasks.done.length);
+    updateProjectOverviewChart();
 }
 
 function renderProjectTaskSection(section, tasks) {
@@ -328,6 +396,136 @@ function renderProjectTaskSection(section, tasks) {
             <div class="personal-section__list">${content}</div>
         </article>
     `;
+}
+
+function createProjectOverviewChartRefs() {
+    const canvas = document.getElementById("projectOverviewStatusChart");
+    const legendWrapper = document.getElementById("projectOverviewStatusLegend");
+    return {
+        canvas,
+        visual: canvas ? canvas.closest(".chart-card__visual") : null,
+        legend: {
+            wrapper: legendWrapper,
+            todo: document.getElementById("projectOverviewLegendTodo"),
+            progress: document.getElementById("projectOverviewLegendProgress"),
+            done: document.getElementById("projectOverviewLegendDone")
+        },
+        empty: document.getElementById("projectOverviewChartEmpty"),
+        instance: null
+    };
+}
+
+function updateProjectOverviewChart() {
+    const chartRefs = projectDetailState?.refs?.overviewChart;
+    if (!chartRefs) {
+        return;
+    }
+
+    const buckets = projectDetailState?.tasks || { to_do: [], in_progress: [], done: [] };
+    const dataset = [
+        buckets.to_do?.length ?? 0,
+        buckets.in_progress?.length ?? 0,
+        buckets.done?.length ?? 0
+    ];
+    const total = dataset.reduce((sum, value) => sum + value, 0);
+
+    updateProjectOverviewLegend(dataset);
+    toggleProjectOverviewChartState(total === 0);
+
+    if (!chartRefs.canvas || typeof Chart === "undefined") {
+        return;
+    }
+
+    if (total === 0) {
+        if (chartRefs.instance) {
+            chartRefs.instance.destroy();
+            chartRefs.instance = null;
+        }
+        return;
+    }
+
+    if (!chartRefs.instance) {
+        const ctx = chartRefs.canvas.getContext("2d");
+        const chartLabelColor = getProjectChartTextColor();
+        chartRefs.instance = new Chart(ctx, {
+            type: "doughnut",
+            data: {
+                labels: PROJECT_OVERVIEW_CHART_LABELS,
+                datasets: [{
+                    data: dataset,
+                    backgroundColor: PROJECT_OVERVIEW_CHART_COLORS,
+                    borderColor: "transparent",
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "65%",
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        displayColors: true,
+                        callbacks: {
+                            title() {
+                                return "";
+                            },
+                            label(context) {
+                                const value = context.raw ?? 0;
+                                return `${context.label}: ${value}`;
+                            }
+                        }
+                    },
+                    [PROJECT_OVERVIEW_PLUGIN_ID]: {
+                        color: chartLabelColor,
+                        totalColor: chartLabelColor,
+                        fontSize: 14,
+                        showTotal: true,
+                        totalFontSize: 22,
+                        totalFontWeight: "700"
+                    }
+                }
+            }
+        });
+        applyProjectOverviewPluginTheme(chartRefs.instance);
+        return;
+    }
+
+    chartRefs.instance.data.datasets[0].data = dataset;
+    applyProjectOverviewPluginTheme(chartRefs.instance);
+    chartRefs.instance.update();
+}
+
+function updateProjectOverviewLegend([todo, progress, done]) {
+    const legend = projectDetailState?.refs?.overviewChart?.legend;
+    if (!legend) {
+        return;
+    }
+    if (legend.todo) {
+        legend.todo.textContent = String(todo ?? 0);
+    }
+    if (legend.progress) {
+        legend.progress.textContent = String(progress ?? 0);
+    }
+    if (legend.done) {
+        legend.done.textContent = String(done ?? 0);
+    }
+}
+
+function toggleProjectOverviewChartState(isEmpty) {
+    const chartRefs = projectDetailState?.refs?.overviewChart;
+    if (!chartRefs) {
+        return;
+    }
+    if (chartRefs.visual) {
+        chartRefs.visual.hidden = isEmpty;
+    }
+    if (chartRefs.legend?.wrapper) {
+        chartRefs.legend.wrapper.hidden = isEmpty;
+    }
+    if (chartRefs.empty) {
+        chartRefs.empty.hidden = !isEmpty;
+    }
 }
 
 function renderTaskCard(task) {

@@ -8,6 +8,63 @@ let userProjectsCache = null;
 let chartValuePluginRegistered = false;
 let dashboardScrollLockListenerAttached = false;
 
+function getThemeVarValue(varName, fallback = "") {
+    try {
+        const styles = window.getComputedStyle(document.documentElement);
+        const value = styles.getPropertyValue(varName);
+        return value?.trim() || fallback;
+    } catch (error) {
+        return fallback;
+    }
+}
+
+function getDoughnutLabelColor() {
+    return getThemeVarValue("--text-base", "#0f172a");
+}
+
+function applyDoughnutPluginColors(chartInstance) {
+    const pluginConfig = chartInstance?.options?.plugins?.[DOUGHNUT_VALUE_PLUGIN_ID];
+    if (!pluginConfig) {
+        return;
+    }
+    const color = getDoughnutLabelColor();
+    pluginConfig.color = color;
+    pluginConfig.totalColor = color;
+}
+
+function refreshDashboardChartTheme(chartKey) {
+    const chartInstance = dashboardRefs?.chart?.[chartKey]?.instance;
+    if (!chartInstance) {
+        return;
+    }
+    applyDoughnutPluginColors(chartInstance);
+    chartInstance.update();
+}
+
+if (typeof window.subscribeToThemeChanges !== "function") {
+    window.subscribeToThemeChanges = function subscribeToThemeChanges(callback) {
+        if (typeof callback !== "function") {
+            return;
+        }
+        document.addEventListener("themechange", callback);
+        if (typeof MutationObserver === "undefined" || !document.documentElement) {
+            return;
+        }
+        const observer = new MutationObserver(mutations => {
+            const themeChanged = mutations.some(mutation => mutation.type === "attributes" && mutation.attributeName === "data-theme");
+            if (themeChanged) {
+                callback();
+            }
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    };
+}
+
+window.subscribeToThemeChanges?.(() => {
+    refreshDashboardChartTheme("project");
+    refreshDashboardChartTheme("personal");
+});
+
 document.addEventListener("DOMContentLoaded", () => {
     setupBackToTopButton();
     if (document.body.classList.contains("body-dashboard")) {
@@ -27,6 +84,12 @@ function registerDashboardChartPlugin() {
             const fontSize = options.fontSize || 13;
             const fontFamily = options.fontFamily || "Inter, system-ui, sans-serif";
             const fontWeight = options.fontWeight || "600";
+            const showTotal = options.showTotal === true;
+            const totalColor = options.totalColor || color;
+            const totalFontFamily = options.totalFontFamily || fontFamily;
+            const totalFontWeight = options.totalFontWeight || "700";
+            const totalFontSize = options.totalFontSize || fontSize + 8;
+            const totalSuffix = options.totalSuffix || "";
 
             const datasets = chart.data?.datasets || [];
             const ctx = chart.ctx;
@@ -46,6 +109,23 @@ function registerDashboardChartPlugin() {
                     ctx.fillText(value, x, y);
                 });
             });
+
+            if (showTotal && chart.chartArea) {
+                const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
+                const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
+                const totalValue = datasets.reduce((total, dataset) => {
+                    const sum = (dataset.data || []).reduce((acc, value) => acc + (Number(value) || 0), 0);
+                    return total + sum;
+                }, 0);
+
+                if (Number.isFinite(centerX) && Number.isFinite(centerY)) {
+                    ctx.fillStyle = totalColor;
+                    ctx.font = `${totalFontWeight} ${totalFontSize}px ${totalFontFamily}`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(`${totalValue}${totalSuffix}`, centerX, centerY);
+                }
+            }
             ctx.restore();
         }
     });
@@ -305,6 +385,7 @@ function updateStatusChart(chartKey, grouped) {
 
     if (!chartRefs.instance) {
         const ctx = chartRefs.canvas.getContext("2d");
+        const chartLabelColor = getDoughnutLabelColor();
         chartRefs.instance = new Chart(ctx, {
             type: "doughnut",
             data: {
@@ -323,7 +404,11 @@ function updateStatusChart(chartKey, grouped) {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        displayColors: true,
                         callbacks: {
+                            title() {
+                                return "";
+                            },
                             label(context) {
                                 const value = context.raw ?? 0;
                                 return `${context.label}: ${value}`;
@@ -331,14 +416,20 @@ function updateStatusChart(chartKey, grouped) {
                         }
                     },
                     [DOUGHNUT_VALUE_PLUGIN_ID]: {
-                        color: "#020617",
-                        fontSize: 14
+                        color: chartLabelColor,
+                        totalColor: chartLabelColor,
+                        fontSize: 14,
+                        showTotal: true,
+                        totalFontSize: 22,
+                        totalFontWeight: "700"
                     }
                 }
             }
         });
+        applyDoughnutPluginColors(chartRefs.instance);
     } else {
         chartRefs.instance.data.datasets[0].data = dataset;
+        applyDoughnutPluginColors(chartRefs.instance);
         chartRefs.instance.update();
     }
 }

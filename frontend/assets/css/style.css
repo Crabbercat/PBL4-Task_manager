@@ -840,26 +840,22 @@ select option {
     min-width: 240px;
 }
 
-.settings-pill {
+.settings-role-label {
     text-align: right;
-    padding: 14px 18px;
-    border-radius: 18px;
-    border: 1px solid var(--border);
-    background: var(--bg-element);
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 160px;
+    gap: 4px;
+    margin: 0;
 }
 
-.settings-pill small {
+.settings-role-label small {
     text-transform: uppercase;
     letter-spacing: 0.15em;
     font-size: 0.7rem;
     color: var(--text-muted);
 }
 
-.settings-pill strong {
+.settings-role-label strong {
     font-size: 1.1rem;
     color: var(--text-base);
 }
@@ -973,13 +969,19 @@ select option {
     justify-self: flex-start;
     min-width: 180px;
     width: auto;
+    align-self: flex-end;
+}
+
+.settings-form--inline .settings-form__grid .primary-button {
+    width: 100%;
+    align-self: flex-end;
 }
 
 .settings-team-row {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(160px, auto);
     gap: 16px;
-    align-items: end;
+    align-items: flex-end;
 }
 
 .settings-team-row__actions {
@@ -990,6 +992,15 @@ select option {
 
 .settings-team-row__actions .primary-button {
     width: 100%;
+}
+
+.settings-form__grid .primary-button,
+.settings-team-row__actions .primary-button {
+    padding: 12px 20px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 @media (max-width: 640px) {
@@ -2600,19 +2611,60 @@ select option {
 }
 
 .project-overview-meta {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 18px;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 18px;
-    background: var(--bg-element);
+    display: flex;
+    justify-content: flex-end;
+
+    gap: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
+.project-overview-meta > div {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+.project-header-aside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 16px;
+    min-width: 260px;
+}
+
+.project-header-aside .project-overview-meta {
+    margin-top: 8px;
+    width: 100%;
+}
+
+@media (max-width: 900px) {
+    .project-detail-header {
+        flex-direction: column;
+    }
+
+    .project-header-aside {
+        align-items: flex-start;
+        width: 100%;
+        min-width: auto;
+    }
+
+    .project-overview-meta {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
+    .project-overview-meta > div {
+        flex: 1 1 140px;
+    }
+}
 .project-task-controls {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex: 0 0 auto;
+    align-items: flex-end;
     gap: 18px;
     margin-bottom: 18px;
 }
@@ -2636,6 +2688,28 @@ select option {
     background: var(--bg-input);
     color: var(--text-base);
     padding: 10px 14px;
+}
+
+.project-task-controls .primary-button {
+    align-self: flex-end;
+    border-radius: 14px;
+    padding: 10px 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 768px) {
+    .project-task-controls {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .project-task-controls .primary-button {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 .body-project-detail .kanban {

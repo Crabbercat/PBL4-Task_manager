@@ -24,14 +24,10 @@ function esc($value) {
                 <p>Keep your personal details, workspace identity, and teams perfectly in sync.</p>
             </div>
             <div class="settings-hero__stats">
-                <div class="settings-pill">
+                <p class="settings-role-label">
                     <small>Current role</small>
                     <strong id="settingsSnapshotRole"><?php echo esc($sessionRole); ?></strong>
-                </div>
-                <!-- <div class="settings-pill">
-                    <small>Signed in as you.</small>
-                    <strong><?php echo esc($sessionDisplayName); ?></strong>
-                </div> -->
+                </p>
             </div>
         </header>
 

@@ -30,11 +30,23 @@ include 'includes/header.php';
                     </div>
                 </div>
             </div>
-            <div class="dashboard-actions">
-                <button class="ghost-button" type="button" id="archiveProjectBtn" hidden>Archive</button>
-                <button class="ghost-button" type="button" id="addMemberBtn" data-requires-role="manager" hidden>Add member</button>
-                <button class="primary-button" type="button" id="projectSettingsBtn" data-requires-role="owner" hidden>Project settings</button>
-                <button class="ghost-button ghost-button--danger" type="button" id="deleteProjectBtn" data-requires-role="owner" hidden>Delete project</button>
+            <div class="project-header-aside">
+                <div class="dashboard-actions">
+                    <button class="ghost-button" type="button" id="archiveProjectBtn" hidden>Archive</button>
+                    <button class="ghost-button" type="button" id="addMemberBtn" data-requires-role="manager" hidden>Add member</button>
+                    <button class="primary-button" type="button" id="projectSettingsBtn" data-requires-role="owner" hidden>Project settings</button>
+                    <button class="ghost-button ghost-button--danger" type="button" id="deleteProjectBtn" data-requires-role="owner" hidden>Delete project</button>
+                </div>
+                <div class="project-overview-meta" aria-live="polite">
+                    <div>
+                        <p class="eyebrow">Status</p>
+                        <strong id="projectArchivedLabel">Active</strong>
+                    </div>
+                    <div>
+                        <p class="eyebrow">Last updated</p>
+                        <strong id="projectUpdatedAt">—</strong>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -67,16 +79,32 @@ include 'includes/header.php';
                     <span>Collaborators in this space</span>
                 </article>
             </div>
-            <div class="project-overview-meta">
-                <div>
-                    <p class="eyebrow">Status</p>
-                    <strong id="projectArchivedLabel">Active</strong>
+            <section class="chart-row" aria-label="Project task distribution">
+                <div class="chart-grid">
+                    <article class="chart-card" aria-label="Project status chart">
+                        <header class="chart-card__header">
+                            <div>
+                                <p class="eyebrow">Task breakdown</p>
+                                <h2>Current status</h2>
+                            </div>
+                            <p class="helper-text">Live distribution of this project's tasks.</p>
+                        </header>
+                        <div class="chart-card__body">
+                            <div class="chart-card__visual" role="img" aria-label="Project task status chart">
+                                <canvas id="projectOverviewStatusChart" aria-hidden="true"></canvas>
+                            </div>
+                            <ul class="chart-legend" id="projectOverviewStatusLegend" aria-live="polite">
+                                <li><span class="legend-dot legend-dot--todo"></span>To do: <strong id="projectOverviewLegendTodo">0</strong></li>
+                                <li><span class="legend-dot legend-dot--progress"></span>In progress: <strong id="projectOverviewLegendProgress">0</strong></li>
+                                <li><span class="legend-dot legend-dot--done"></span>Done: <strong id="projectOverviewLegendDone">0</strong></li>
+                            </ul>
+                            <p class="chart-card__empty helper-text" id="projectOverviewChartEmpty" hidden>
+                                Task data will appear once this project has activity.
+                            </p>
+                        </div>
+                    </article>
                 </div>
-                <div>
-                    <p class="eyebrow">Last updated</p>
-                    <strong id="projectUpdatedAt">—</strong>
-                </div>
-            </div>
+            </section>
         </section>
 
         <section class="project-tab-panel" id="projectTabTasks" role="tabpanel">

@@ -38,7 +38,6 @@ async function handleLogin(event) {
     const btn = document.getElementById("loginBtn");
 
     setLoading(btn, true, "Signing in...");
-    messageEl.textContent = "";
     messageEl.className = "helper-text";
 
     try {
@@ -58,8 +57,6 @@ async function handleLogin(event) {
 
         // Save token
         localStorage.setItem("tm_access_token", data.access_token);
-
-        messageEl.textContent = "Login successful! Redirecting...";
         messageEl.classList.add("success");
         window.showToast?.("Login successful", { type: "success" });
 
@@ -68,11 +65,10 @@ async function handleLogin(event) {
         }, 1000);
 
     } catch (error) {
-        messageEl.textContent = error.message;
         messageEl.classList.add("error");
         window.showToast?.("Login failed", { type: "error", description: error.message });
     } finally {
-        setLoading(btn, false, "Sign in");
+        setLoading(btn, false, "Signing in");
     }
 }
 
@@ -87,13 +83,11 @@ async function handleRegister(event) {
     const confirmPassword = formData.get("confirmPassword");
 
     if (password !== confirmPassword) {
-        messageEl.textContent = "Passwords do not match";
-        messageEl.classList.add("error");
+        window.showToast?.("Registration failed", { type: "error", description: "Passwords do not match" });
         return;
     }
 
     setLoading(btn, true, "Creating account...");
-    messageEl.textContent = "";
     messageEl.className = "helper-text";
 
     const payload = Object.fromEntries(formData.entries());
@@ -120,16 +114,14 @@ async function handleRegister(event) {
             throw new Error(data.detail || "Registration failed");
         }
 
-        messageEl.textContent = "Account created! Redirecting to login...";
         messageEl.classList.add("success");
-        window.showToast?.("Account created", { type: "success" });
+        window.showToast?.("Account created! Redirecting to login...", { type: "success" });
 
         setTimeout(() => {
             window.location.href = "login.php";
         }, 1500);
 
     } catch (error) {
-        messageEl.textContent = error.message;
         messageEl.classList.add("error");
         window.showToast?.("Registration failed", { type: "error", description: error.message });
     } finally {

@@ -35,9 +35,22 @@ const ThemeManager = {
     },
 
     setTheme(theme) {
+        if (!this.html) {
+            return;
+        }
+        const previousTheme = this.html.getAttribute('data-theme');
         this.html.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
         this.updateIcon(theme);
+        if (previousTheme !== theme) {
+            this.emitThemeChange(theme);
+        }
+    },
+
+    emitThemeChange(theme) {
+        document.dispatchEvent(new CustomEvent('themechange', {
+            detail: { theme }
+        }));
     },
 
     updateIcon(theme) {
