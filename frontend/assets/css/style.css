@@ -1441,6 +1441,25 @@ select option {
     flex: 1;
 }
 
+.task-dropzone {
+    padding: 6px;
+    margin: -6px;
+    border-radius: 24px;
+    border: 2px dashed transparent;
+    min-height: 80px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.task-dropzone--active {
+    border-color: rgba(124, 93, 255, 0.35);
+    background: rgba(124, 93, 255, 0.05);
+}
+
+.task-dropzone--hover {
+    border-color: var(--primary);
+    background: rgba(124, 93, 255, 0.12);
+}
+
 .personal-section__empty {
     color: var(--text-muted);
     font-size: 0.95rem;
@@ -1593,6 +1612,11 @@ select option {
 .personal-task-card:hover .personal-task-card__actions {
     opacity: 1;
     transform: translateX(0);
+}
+
+.personal-task-card.is-dragging {
+    opacity: 0.55;
+    box-shadow: var(--shadow-elevated);
 }
 
 .personal-task-card__action {

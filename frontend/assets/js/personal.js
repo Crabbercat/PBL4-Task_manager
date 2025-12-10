@@ -50,11 +50,15 @@ function initPersonalTasks() {
         originalPayload: null,
         mode: "edit",
         viewMode: "kanban",
-        viewButtons: Array.from(document.querySelectorAll(".personal-main .task-view-toggle__btn"))
+        viewButtons: Array.from(document.querySelectorAll(".personal-main .task-view-toggle__btn")),
+        dragContext: null,
+        activeDropzone: null,
+        dragListenersAttached: false
     };
 
     personalTaskState.board.addEventListener("click", handleBoardClick);
     personalTaskState.board.addEventListener("change", handleBoardChange);
+    setupPersonalDragAndDrop();
     setupPersonalViewToggle();
     setupPersonalModal();
     fetchPersonalTasks().then(() => {
@@ -153,7 +157,7 @@ function renderPersonalSection(section, tasks) {
                 </div>
                 <span class="personal-section__count">${tasks.length}</span>
             </header>
-            <div class="personal-section__list">${content}</div>
+            <div class="personal-section__list task-dropzone" data-task-dropzone="${section.key}">${content}</div>
         </article>
     `;
 }
@@ -164,9 +168,12 @@ function renderPersonalTaskCard(task) {
     const priorityKey = (task.priority || "medium").toLowerCase();
     const priorityMeta = PRIORITY_META[priorityKey] || PRIORITY_META.medium;
     const due = formatDate(task.due_date);
+    const canDrag = personalTaskState?.viewMode === "kanban";
+    const dragAttributes = canDrag ? ' draggable="true"' : "";
+    const status = (task.status || "to_do").toLowerCase();
 
     return `
-        <article class="personal-task-card" data-task-id="${task.id}">
+        <article class="personal-task-card" data-task-id="${task.id}" data-task-status="${status}"${dragAttributes}>
             <div class="personal-task-card__main">
                 <label class="task-complete-toggle">
                     <input type="checkbox" data-complete-toggle="${task.id}" ${task.completed ? "checked" : ""} aria-label="Mark task complete" />
@@ -269,6 +276,126 @@ function handleBoardChange(event) {
     toggleTaskCompletion(taskId, toggle.checked, toggle);
 }
 
+function setupPersonalDragAndDrop() {
+    const board = personalTaskState?.board;
+    if (!board || personalTaskState.dragListenersAttached) {
+        return;
+    }
+    board.addEventListener("dragstart", handlePersonalTaskDragStart);
+    board.addEventListener("dragend", handlePersonalTaskDragEnd);
+    board.addEventListener("dragover", handlePersonalTaskDragOver);
+    board.addEventListener("drop", handlePersonalTaskDrop);
+    board.addEventListener("dragleave", handlePersonalTaskDragLeave);
+    personalTaskState.dragListenersAttached = true;
+}
+
+function handlePersonalTaskDragStart(event) {
+    if (personalTaskState?.viewMode !== "kanban") {
+        return;
+    }
+    const card = event.target.closest(".personal-task-card");
+    if (!card || card.getAttribute("draggable") !== "true") {
+        return;
+    }
+    const taskId = Number(card.dataset.taskId);
+    if (!Number.isFinite(taskId)) {
+        return;
+    }
+    const status = (card.dataset.taskStatus || "to_do").toLowerCase();
+    personalTaskState.dragContext = { taskId, status };
+    card.classList.add("is-dragging");
+    setPersonalDropzonesActive(true);
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(taskId));
+    }
+}
+
+function handlePersonalTaskDragEnd(event) {
+    event.target?.classList?.remove("is-dragging");
+    clearPersonalDropzoneState();
+    personalTaskState.dragContext = null;
+}
+
+function handlePersonalTaskDragOver(event) {
+    if (personalTaskState?.viewMode !== "kanban" || !personalTaskState?.dragContext) {
+        return;
+    }
+    const dropzone = event.target.closest('[data-task-dropzone]');
+    if (!dropzone) {
+        return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+    }
+    highlightPersonalDropzone(dropzone);
+}
+
+function handlePersonalTaskDragLeave(event) {
+    if (!personalTaskState?.dragContext) {
+        return;
+    }
+    const dropzone = event.target.closest('[data-task-dropzone]');
+    if (!dropzone) {
+        return;
+    }
+    if (dropzone.contains(event.relatedTarget)) {
+        return;
+    }
+    dropzone.classList.remove("task-dropzone--hover");
+    if (personalTaskState.activeDropzone === dropzone) {
+        personalTaskState.activeDropzone = null;
+    }
+}
+
+async function handlePersonalTaskDrop(event) {
+    const context = personalTaskState?.dragContext;
+    if (!context || personalTaskState.viewMode !== "kanban") {
+        return;
+    }
+    const dropzone = event.target.closest('[data-task-dropzone]');
+    if (!dropzone) {
+        return;
+    }
+    event.preventDefault();
+    const targetStatus = dropzone.dataset.taskDropzone;
+    clearPersonalDropzoneState();
+    personalTaskState.dragContext = null;
+    if (!targetStatus || targetStatus === context.status) {
+        return;
+    }
+    await updatePersonalTaskStatus(context.taskId, targetStatus);
+}
+
+function setPersonalDropzonesActive(isActive) {
+    const zones = personalTaskState?.board?.querySelectorAll('[data-task-dropzone]');
+    zones?.forEach(zone => {
+        zone.classList.toggle("task-dropzone--active", isActive);
+        if (!isActive) {
+            zone.classList.remove("task-dropzone--hover");
+        }
+    });
+    if (!isActive) {
+        personalTaskState.activeDropzone = null;
+    }
+}
+
+function highlightPersonalDropzone(dropzone) {
+    if (personalTaskState.activeDropzone === dropzone) {
+        return;
+    }
+    personalTaskState.activeDropzone?.classList.remove("task-dropzone--hover");
+    dropzone.classList.add("task-dropzone--hover");
+    personalTaskState.activeDropzone = dropzone;
+}
+
+function clearPersonalDropzoneState() {
+    setPersonalDropzonesActive(false);
+    personalTaskState.board?.querySelectorAll('.personal-task-card.is-dragging')
+        ?.forEach(card => card.classList.remove("is-dragging"));
+}
+
 async function toggleTaskCompletion(taskId, completed, checkbox) {
     checkbox.disabled = true;
     const payload = { completed };
@@ -293,6 +420,27 @@ async function toggleTaskCompletion(taskId, completed, checkbox) {
         checkbox.checked = !completed;
     } finally {
         checkbox.disabled = false;
+    }
+}
+
+async function updatePersonalTaskStatus(taskId, status) {
+    if (!Number.isFinite(taskId) || !status) {
+        return;
+    }
+    try {
+        const response = await authedFetch(`/tasks/${taskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status, completed: status === "done" })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data?.detail || "Unable to update task");
+        }
+        window.showToast?.("Task moved", { type: "success" });
+        await fetchPersonalTasks();
+    } catch (error) {
+        window.showToast?.("Unable to move task", { type: "error", description: error.message });
     }
 }
 

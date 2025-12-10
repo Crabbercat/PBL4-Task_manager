@@ -155,9 +155,12 @@ function initProjectDetailPage() {
             deleteProjectBtn: document.getElementById("deleteProjectBtn"),
             overviewChart: createProjectOverviewChartRefs()
         },
-            pendingEditTaskId: null,
-            taskFormBaseline: null,
-            taskFormLocked: false
+        pendingEditTaskId: null,
+        taskFormBaseline: null,
+        taskFormLocked: false,
+        dragContext: null,
+        activeDropzone: null,
+        dragListenersAttached: false
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -172,6 +175,7 @@ function initProjectDetailPage() {
     setupTaskBoardInteractions();
     setupTaskModal();
     setupProjectActions();
+    setupProjectTaskDragAndDrop();
     loadProjectDetailData();
 }
 
@@ -399,7 +403,7 @@ function renderProjectTaskSection(section, tasks) {
                 </div>
                 <span class="personal-section__count">${tasks.length}</span>
             </header>
-            <div class="personal-section__list">${content}</div>
+            <div class="personal-section__list task-dropzone" data-task-dropzone="${section.key}">${content}</div>
         </article>
     `;
 }
@@ -542,6 +546,7 @@ function renderTaskCard(task) {
     const canDelete = canDeleteProjectTask();
     const statusControl = renderTaskStatusControl(task);
     const canToggleCompletion = canUpdateTaskStatus(task);
+    const canDrag = canToggleCompletion;
     const tagsMarkup = renderTaskTags(task.tags);
     const actionButtons = [];
     if (canEdit) {
@@ -572,8 +577,11 @@ function renderTaskCard(task) {
         ? `<div class="personal-task-card__actions">${actionButtons.join("")}</div>`
         : "";
 
+    const dragAttributes = canDrag ? " draggable=\"true\"" : "";
+    const taskStatus = (task.status || "to_do").toLowerCase();
+
     return `
-        <article class="personal-task-card project-task-card" data-task-id="${task.id}">
+        <article class="personal-task-card project-task-card" data-task-id="${task.id}" data-task-status="${taskStatus}"${dragAttributes}>
             <div class="personal-task-card__main">
                 <label class="task-complete-toggle">
                     <input type="checkbox" data-task-complete="${task.id}" ${task.completed ? "checked" : ""} aria-label="Mark task complete" ${canToggleCompletion ? "" : "disabled"} />
@@ -682,6 +690,127 @@ function handleTaskBoardChange(event) {
     });
 }
 
+function setupProjectTaskDragAndDrop() {
+    const board = projectDetailState?.refs?.board;
+    if (!board || projectDetailState.dragListenersAttached) {
+        return;
+    }
+    board.addEventListener("dragstart", handleProjectTaskDragStart);
+    board.addEventListener("dragend", handleProjectTaskDragEnd);
+    board.addEventListener("dragover", handleProjectTaskDragOver);
+    board.addEventListener("drop", handleProjectTaskDrop);
+    board.addEventListener("dragleave", handleProjectTaskDragLeave);
+    projectDetailState.dragListenersAttached = true;
+}
+
+function handleProjectTaskDragStart(event) {
+    const card = event.target.closest(".project-task-card");
+    if (!card || card.getAttribute("draggable") !== "true") {
+        return;
+    }
+    const taskId = Number(card.dataset.taskId);
+    if (!Number.isFinite(taskId)) {
+        return;
+    }
+    const status = (card.dataset.taskStatus || "to_do").toLowerCase();
+    projectDetailState.dragContext = { taskId, status };
+    card.classList.add("is-dragging");
+    setProjectDropzonesActive(true);
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(taskId));
+    }
+}
+
+function handleProjectTaskDragEnd(event) {
+    event.target?.classList?.remove("is-dragging");
+    clearProjectDropzoneState();
+    projectDetailState.dragContext = null;
+}
+
+function handleProjectTaskDragOver(event) {
+    if (!projectDetailState?.dragContext) {
+        return;
+    }
+    const dropzone = event.target.closest("[data-task-dropzone]");
+    if (!dropzone) {
+        return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+    }
+    highlightProjectDropzone(dropzone);
+}
+
+function handleProjectTaskDragLeave(event) {
+    if (!projectDetailState?.dragContext) {
+        return;
+    }
+    const dropzone = event.target.closest("[data-task-dropzone]");
+    if (!dropzone) {
+        return;
+    }
+    if (dropzone.contains(event.relatedTarget)) {
+        return;
+    }
+    dropzone.classList.remove("task-dropzone--hover");
+    if (projectDetailState.activeDropzone === dropzone) {
+        projectDetailState.activeDropzone = null;
+    }
+}
+
+async function handleProjectTaskDrop(event) {
+    const context = projectDetailState?.dragContext;
+    if (!context) {
+        return;
+    }
+    const dropzone = event.target.closest("[data-task-dropzone]");
+    if (!dropzone) {
+        return;
+    }
+    event.preventDefault();
+    const targetStatus = dropzone.dataset.taskDropzone;
+    clearProjectDropzoneState();
+    projectDetailState.dragContext = null;
+    if (!targetStatus || targetStatus === context.status) {
+        return;
+    }
+    try {
+        await updateProjectTaskStatus(context.taskId, targetStatus);
+    } catch (error) {
+        notify?.("Unable to move task", { type: "error", description: error.message });
+    }
+}
+
+function highlightProjectDropzone(dropzone) {
+    if (projectDetailState.activeDropzone === dropzone) {
+        return;
+    }
+    projectDetailState.activeDropzone?.classList.remove("task-dropzone--hover");
+    dropzone.classList.add("task-dropzone--hover");
+    projectDetailState.activeDropzone = dropzone;
+}
+
+function setProjectDropzonesActive(isActive) {
+    const zones = projectDetailState?.refs?.board?.querySelectorAll("[data-task-dropzone]");
+    zones?.forEach(zone => {
+        zone.classList.toggle("task-dropzone--active", isActive);
+        if (!isActive) {
+            zone.classList.remove("task-dropzone--hover");
+        }
+    });
+    if (!isActive) {
+        projectDetailState.activeDropzone = null;
+    }
+}
+
+function clearProjectDropzoneState() {
+    setProjectDropzonesActive(false);
+    projectDetailState.refs?.board?.querySelectorAll(".project-task-card.is-dragging")
+        ?.forEach(card => card.classList.remove("is-dragging"));
+}
+
 async function toggleProjectTaskCompletion(taskId, completed) {
     await authedFetch(`/tasks/${taskId}`, {
         method: "PUT",
@@ -700,7 +829,9 @@ async function updateProjectTaskStatus(taskId, status, selectEl) {
     if (!Number.isFinite(taskId)) {
         throw new Error("Missing task id");
     }
-    selectEl.disabled = true;
+    if (selectEl) {
+        selectEl.disabled = true;
+    }
     try {
         const response = await authedFetch(`/tasks/${taskId}`, {
             method: "PUT",
@@ -713,7 +844,9 @@ async function updateProjectTaskStatus(taskId, status, selectEl) {
         }
         await fetchProjectTasks();
     } finally {
-        selectEl.disabled = false;
+        if (selectEl) {
+            selectEl.disabled = false;
+        }
     }
 }
 
