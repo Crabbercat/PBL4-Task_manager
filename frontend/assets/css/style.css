@@ -2700,6 +2700,10 @@ select option {
     gap: 8px;
 }
 
+.project-task-add {
+    margin-left: auto;
+}
+
 @media (max-width: 768px) {
     .project-task-controls {
         flex-wrap: wrap;
@@ -2710,6 +2714,10 @@ select option {
     .project-task-controls .primary-button {
         width: 100%;
         justify-content: center;
+    }
+
+    .project-task-add {
+        margin-left: 0;
     }
 }
 

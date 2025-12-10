@@ -48,11 +48,14 @@ function initPersonalTasks() {
         tasks: [],
         editingTaskId: null,
         originalPayload: null,
-        mode: "edit"
+        mode: "edit",
+        viewMode: "kanban",
+        viewButtons: Array.from(document.querySelectorAll(".personal-main .task-view-toggle__btn"))
     };
 
     personalTaskState.board.addEventListener("click", handleBoardClick);
     personalTaskState.board.addEventListener("change", handleBoardChange);
+    setupPersonalViewToggle();
     setupPersonalModal();
     fetchPersonalTasks().then(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -106,6 +109,10 @@ async function fetchPersonalTasks() {
 function renderPersonalTasks() {
     if (!personalTaskState) return;
     const grouped = groupTasksByStatus(personalTaskState.tasks);
+    const viewMode = personalTaskState.viewMode || "kanban";
+    if (personalTaskState.board) {
+        personalTaskState.board.dataset.taskView = viewMode;
+    }
 
     if (!personalTaskState.tasks.length) {
         personalTaskState.board.innerHTML = '';
@@ -114,9 +121,11 @@ function renderPersonalTasks() {
     }
 
     togglePersonalMessage(false, "");
-    personalTaskState.board.innerHTML = PERSONAL_SECTIONS
-        .map(section => renderPersonalSection(section, grouped[section.key] || []))
-        .join("");
+    personalTaskState.board.innerHTML = viewMode === "kanban"
+        ? PERSONAL_SECTIONS
+            .map(section => renderPersonalSection(section, grouped[section.key] || []))
+            .join("")
+        : renderPersonalFlatBoard(viewMode, personalTaskState.tasks);
 }
 
 function groupTasksByStatus(tasks) {
@@ -594,6 +603,66 @@ function setLoading(button, loading, text) {
         button.disabled = false;
         button.textContent = text || button.dataset.originalText || "Save changes";
     }
+}
+
+function setupPersonalViewToggle() {
+    if (!personalTaskState?.viewButtons?.length) {
+        return;
+    }
+    const initialActive = personalTaskState.viewButtons.find(button =>
+        button.classList.contains("is-active") || button.getAttribute("aria-pressed") === "true"
+    );
+    const startingView = normalizeTaskViewMode(initialActive?.dataset?.taskView || personalTaskState.viewMode);
+    personalTaskState.viewMode = startingView;
+    setPersonalViewMode(startingView, { suppressRender: true });
+    personalTaskState.viewButtons.forEach(button => {
+        button.addEventListener("click", () => {
+            setPersonalViewMode(button.dataset?.taskView);
+        });
+    });
+}
+
+function setPersonalViewMode(mode, options = {}) {
+    if (!personalTaskState) {
+        return;
+    }
+    const targetView = normalizeTaskViewMode(mode);
+    const hasChanged = personalTaskState.viewMode !== targetView;
+    personalTaskState.viewMode = targetView;
+    updateTaskViewButtons(personalTaskState.viewButtons, targetView);
+    if (personalTaskState.board) {
+        personalTaskState.board.dataset.taskView = targetView;
+    }
+    if (options.suppressRender) {
+        return;
+    }
+    if (hasChanged) {
+        renderPersonalTasks();
+    }
+}
+
+function renderPersonalFlatBoard(viewMode, tasks) {
+    const variant = viewMode === "grid" ? "task-board-flat task-board-flat--grid" : "task-board-flat task-board-flat--list";
+    const content = tasks.length
+        ? tasks.map(renderPersonalTaskCard).join("")
+        : '<p class="personal-section__empty">No tasks yet.</p>';
+    return `<div class="${variant}">${content}</div>`;
+}
+
+function normalizeTaskViewMode(mode) {
+    const value = (mode || "").toLowerCase();
+    return value === "list" || value === "grid" ? value : "kanban";
+}
+
+function updateTaskViewButtons(buttons, activeView) {
+    if (!buttons?.length) {
+        return;
+    }
+    buttons.forEach(button => {
+        const isActive = button.dataset?.taskView === activeView;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
 }
 
 function humanize(value) {

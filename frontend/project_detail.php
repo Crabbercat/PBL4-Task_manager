@@ -126,7 +126,7 @@ include 'includes/header.php';
                         </select>
                     </label>
                 </div>
-                <button class="primary-button" type="button" id="openProjectTaskModal" data-requires-role="manager" hidden>
+                <button class="primary-button project-task-add" type="button" id="openProjectTaskModal" data-requires-role="manager" hidden>
                     <span>+</span> Add task
                 </button>
             </div>
