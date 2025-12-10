@@ -189,8 +189,22 @@ function renderPersonalTaskCard(task) {
                 </span>
             </div>
             <div class="personal-task-card__actions">
-                <button class="ghost-button" type="button" data-edit-task="${task.id}">Edit</button>
-                <button class="ghost-button ghost-button--danger" type="button" data-delete-task="${task.id}">Delete</button>
+                <button class="personal-task-card__action" type="button" data-edit-task="${task.id}" aria-label="Edit task">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                    <span class="sr-only" data-button-label>Edit task</span>
+                </button>
+                <button class="personal-task-card__action personal-task-card__action--danger" type="button" data-delete-task="${task.id}" aria-label="Delete task">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                    <span class="sr-only" data-button-label>Delete task</span>
+                </button>
             </div>
         </article>
     `;
@@ -227,9 +241,9 @@ async function deletePersonalTask(taskId, button) {
     if (!confirmed) {
         return;
     }
-    const original = button.textContent;
+    const original = getButtonLabel(button);
     button.disabled = true;
-    button.textContent = "Deleting…";
+    setButtonLabel(button, "Deleting…");
     try {
         const response = await authedFetch(`/tasks/${taskId}`, { method: "DELETE" });
         if (!response.ok) {
@@ -242,7 +256,7 @@ async function deletePersonalTask(taskId, button) {
         notify?.("Delete failed", { type: "error", description: error.message });
     } finally {
         button.disabled = false;
-        button.textContent = original;
+        setButtonLabel(button, original);
     }
 }
 
@@ -694,4 +708,23 @@ function escapeHtml(text) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function setButtonLabel(button, label) {
+    if (!button) return;
+    const target = button.querySelector("[data-button-label]");
+    if (target) {
+        target.textContent = label;
+        return;
+    }
+    button.textContent = label;
+}
+
+function getButtonLabel(button) {
+    if (!button) return "";
+    const target = button.querySelector("[data-button-label]");
+    if (target) {
+        return target.textContent || "";
+    }
+    return button.textContent || "";
 }

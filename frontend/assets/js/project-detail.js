@@ -151,6 +151,7 @@ function initProjectDetailPage() {
             projectSettingsMessage: document.getElementById("projectSettingsMessage"),
             projectSettingsSubmitBtn: document.getElementById("projectSettingsSubmitBtn"),
             archiveProjectBtn: document.getElementById("archiveProjectBtn"),
+            modalArchiveProjectBtn: document.getElementById("modalArchiveProjectBtn"),
             deleteProjectBtn: document.getElementById("deleteProjectBtn"),
             overviewChart: createProjectOverviewChartRefs()
         },
@@ -263,6 +264,7 @@ function renderProjectOverview(project) {
         updatedAt,
         overviewStats,
         archiveProjectBtn,
+        modalArchiveProjectBtn,
         taskModalTrigger
     } = projectDetailState.refs;
     title.textContent = project.name;
@@ -289,10 +291,14 @@ function renderProjectOverview(project) {
         }
     overviewStats.done.textContent = "0";
 
+    const canArchive = canManageProjectSettings();
     if (archiveProjectBtn) {
-        const canArchive = canManageProjectSettings();
         archiveProjectBtn.hidden = !canArchive;
         archiveProjectBtn.textContent = project.archived ? "Restore" : "Archive";
+    }
+    if (modalArchiveProjectBtn) {
+        modalArchiveProjectBtn.hidden = !canArchive;
+        modalArchiveProjectBtn.textContent = project.archived ? "Restore project" : "Archive project";
     }
 }
 
@@ -539,10 +545,28 @@ function renderTaskCard(task) {
     const tagsMarkup = renderTaskTags(task.tags);
     const actionButtons = [];
     if (canEdit) {
-        actionButtons.push(`<button class="ghost-button" type="button" data-edit-task="${task.id}">Edit</button>`);
+        actionButtons.push(`
+            <button class="personal-task-card__action" type="button" data-edit-task="${task.id}" aria-label="Edit task">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+                <span class="sr-only" data-button-label>Edit task</span>
+            </button>
+        `);
     }
     if (canDelete) {
-        actionButtons.push(`<button class="ghost-button ghost-button--danger" type="button" data-delete-task="${task.id}">Delete</button>`);
+        actionButtons.push(`
+            <button class="personal-task-card__action personal-task-card__action--danger" type="button" data-delete-task="${task.id}" aria-label="Delete task">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                <span class="sr-only" data-button-label>Delete task</span>
+            </button>
+        `);
     }
     const actionsMarkup = actionButtons.length
         ? `<div class="personal-task-card__actions">${actionButtons.join("")}</div>`
@@ -708,9 +732,9 @@ async function deleteProjectTask(taskId, trigger) {
     if (!confirmed) {
         return;
     }
-    const original = trigger.textContent;
+    const original = getButtonLabel(trigger);
     trigger.disabled = true;
-    trigger.textContent = "Deleting…";
+    setButtonLabel(trigger, "Deleting…");
     try {
         const response = await authedFetch(`/tasks/${taskId}`, { method: "DELETE" });
         if (!response.ok) {
@@ -723,7 +747,7 @@ async function deleteProjectTask(taskId, trigger) {
         notify?.("Delete failed", { type: "error", description: error.message });
     } finally {
         trigger.disabled = false;
-        trigger.textContent = original;
+        setButtonLabel(trigger, original);
     }
 }
 
@@ -791,7 +815,9 @@ function setupProjectActions() {
         projectSettingsBtn,
         projectSettingsModal,
         projectSettingsForm,
-        archiveProjectBtn
+        archiveProjectBtn,
+        modalArchiveProjectBtn,
+        deleteProjectBtn
     } = projectDetailState.refs;
 
     [addMemberBtn, openMemberBtn]
@@ -818,6 +844,7 @@ function setupProjectActions() {
     projectSettingsForm?.addEventListener("submit", handleProjectSettingsSubmit);
 
     archiveProjectBtn?.addEventListener("click", handleArchiveToggle);
+    modalArchiveProjectBtn?.addEventListener("click", handleArchiveToggle);
     deleteProjectBtn?.addEventListener("click", handleDeleteProject);
 }
 
@@ -1090,7 +1117,6 @@ function prefillProjectSettingsForm(project) {
     projectSettingsForm.name.value = project.name || "";
     projectSettingsForm.description.value = project.description || "";
     projectSettingsForm.color.value = project.color || "#7757ff";
-    projectSettingsForm.settingsArchived.checked = Boolean(project.archived);
 }
 
 function closeProjectSettingsModal() {
@@ -1141,23 +1167,26 @@ function collectProjectSettingsPayload(form) {
     return {
         name,
         description: form.description.value.trim() || null,
-        color: form.color.value || null,
-        archived: form.settingsArchived.checked
+        color: form.color.value || null
     };
 }
 
-async function handleArchiveToggle() {
+async function handleArchiveToggle(event) {
     if (!canManageProjectSettings()) {
         notify?.("Only the owner can archive this project", { type: "error" });
         return;
     }
-    const button = projectDetailState.refs.archiveProjectBtn;
     const project = projectDetailState.project;
-    if (!button || !project) {
+    if (!project) {
         return;
     }
+    const triggerButton = event?.currentTarget;
+    const fallbackButton = projectDetailState.refs.archiveProjectBtn || projectDetailState.refs.modalArchiveProjectBtn;
+    const button = triggerButton instanceof HTMLElement ? triggerButton : fallbackButton;
     const loadingLabel = project.archived ? "Restoring…" : "Archiving…";
-    setButtonLoadingState(button, true, loadingLabel);
+    if (button) {
+        setButtonLoadingState(button, true, loadingLabel);
+    }
     const action = project.archived ? "restore" : "archive";
     try {
         const response = await authedFetch(`/projects/${projectDetailState.projectId}/${action}`, {
@@ -1172,10 +1201,21 @@ async function handleArchiveToggle() {
     } catch (error) {
         notify?.("Update project state failed", { type: "error", description: error.message });
     } finally {
-        const latest = projectDetailState.project;
-        const nextLabel = latest?.archived ? "Restore" : "Archive";
-        setButtonLoadingState(button, false, nextLabel || (project.archived ? "Restore" : "Archive"));
+        const latestState = typeof projectDetailState.project?.archived === "boolean"
+            ? projectDetailState.project.archived
+            : project.archived;
+        if (button) {
+            setButtonLoadingState(button, false, getArchiveButtonLabel(button, latestState));
+        }
     }
+}
+
+function getArchiveButtonLabel(button, isArchived) {
+    const isHeaderButton = button?.id === "archiveProjectBtn";
+    if (isHeaderButton) {
+        return isArchived ? "Restore" : "Archive";
+    }
+    return isArchived ? "Restore project" : "Archive project";
 }
 
 function canManageProjectSettings() {
@@ -1543,7 +1583,30 @@ function setButtonLoadingState(button, isLoading, label) {
         return;
     }
     button.disabled = isLoading;
+    setButtonLabel(button, label);
+}
+
+function setButtonLabel(button, label) {
+    if (!button) {
+        return;
+    }
+    const labelTarget = button.querySelector("[data-button-label]");
+    if (labelTarget) {
+        labelTarget.textContent = label;
+        return;
+    }
     button.textContent = label;
+}
+
+function getButtonLabel(button) {
+    if (!button) {
+        return "";
+    }
+    const labelTarget = button.querySelector("[data-button-label]");
+    if (labelTarget) {
+        return labelTarget.textContent || "";
+    }
+    return button.textContent || "";
 }
 
 function escapeHtml(text) {

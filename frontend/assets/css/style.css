@@ -1595,6 +1595,47 @@ select option {
     transform: translateX(0);
 }
 
+.personal-task-card__action {
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-base);
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+    padding: 0;
+}
+
+[data-theme="light"] .personal-task-card__action {
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.personal-task-card__action:hover {
+    background: rgba(255, 255, 255, 0.16);
+    transform: translateY(-1px);
+}
+
+[data-theme="light"] .personal-task-card__action:hover {
+    background: rgba(15, 23, 42, 0.12);
+}
+
+.personal-task-card__action svg {
+    pointer-events: none;
+}
+
+.personal-task-card__action--danger {
+    background: rgba(244, 63, 94, 0.2);
+    color: #ff8da1;
+}
+
+.personal-task-card__action--danger:hover {
+    background: rgba(244, 63, 94, 0.32);
+}
+
 .task-complete-toggle {
     width: 28px;
     height: 28px;
@@ -2882,11 +2923,76 @@ select option {
     cursor: pointer;
 }
 
-.project-archive-toggle {
+.project-settings__danger-row {
+    margin-top: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: transparent;
+}
+
+.project-settings__action {
+    border: none;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-base);
+    padding: 12px 22px;
+    border-radius: 16px;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+[data-theme="light"] .project-settings__action {
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.project-settings__action:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+[data-theme="light"] .project-settings__action:hover {
+    background: rgba(15, 23, 42, 0.08);
+}
+
+.project-settings__action--danger {
+    background: rgba(244, 63, 94, 0.18);
+    color: #ff8da1;
+}
+
+.project-settings__action--danger:hover {
+    background: rgba(244, 63, 94, 0.28);
+}
+
+.project-settings__action--icon {
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    justify-content: center;
+}
+
+.project-settings__action--icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+@media (max-width: 640px) {
+    .project-settings__danger-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .project-settings__danger-row .project-settings__action {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 .modal__close {

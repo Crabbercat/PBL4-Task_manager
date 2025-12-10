@@ -35,7 +35,6 @@ include 'includes/header.php';
                     <button class="ghost-button" type="button" id="archiveProjectBtn" hidden>Archive</button>
                     <button class="ghost-button" type="button" id="addMemberBtn" data-requires-role="manager" hidden>Add member</button>
                     <button class="primary-button" type="button" id="projectSettingsBtn" data-requires-role="owner" hidden>Project settings</button>
-                    <button class="ghost-button ghost-button--danger" type="button" id="deleteProjectBtn" data-requires-role="owner" hidden>Delete project</button>
                 </div>
                 <div class="project-overview-meta" aria-live="polite">
                     <div>
@@ -244,10 +243,25 @@ include 'includes/header.php';
                 <span>Color</span>
                 <input type="color" name="color" id="settingsColor">
             </label>
-            <label class="project-archive-toggle">
-                <input type="checkbox" id="settingsArchived" name="settingsArchived">
-                <span>Archive project</span>
-            </label>
+            <p class="helper-text">Need a clean slate?</p>
+            <div class="project-settings__danger-row" role="group" aria-label="Project danger zone">
+                <button class="ghost-button project-settings__action" type="button" id="modalArchiveProjectBtn" data-requires-role="owner" hidden>Archive project</button>
+                <button class="ghost-button ghost-button--danger project-settings__action project-settings__action--icon project-settings__action--danger"
+                    type="button"
+                    id="deleteProjectBtn"
+                    data-requires-role="owner"
+                    hidden
+                    aria-label="Delete project"
+                    title="Delete project">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                    <span class="sr-only" data-button-label>Delete project</span>
+                </button>
+            </div>
             <p class="helper-text" id="projectSettingsMessage"></p>
             <div class="modal__actions">
                 <button class="ghost-button" type="button" data-modal-dismiss>Cancel</button>
